@@ -133,7 +133,12 @@ function pathnameOf(url: string): string {
 }
 
 /** Match both HTTP status and business code; null codes match HTTP-only variants. */
-function variantMatches(v: Variant, http: number, code: number | null): boolean {
+function variantMatches(v: Variant, http: number, code: number | null, api: LoadedApi): boolean {
+  const recordings = api.examples.filter((example) => v.examples?.includes(example.name));
+  if (recordings.length > 0) {
+    return recordings.some(({ data }) => data.http === http && data.code === code);
+  }
+  // Definitions without recordings retain the legacy declaration-based fallback.
   if (!v.http.includes(http)) return false;
   return code === null ? v.codes.length === 0 : v.codes.includes(code);
 }
@@ -166,7 +171,13 @@ function classifyFrame(
   }
 
   const variants = api.definition.responses;
-  const matched = variants.find((v) => variantMatches(v, frame.http, frame.code));
+  const matches = variants.filter((v) => variantMatches(v, frame.http, frame.code, api));
+  if (matches.length > 1) {
+    return [{ api: api.definition.api, kind: 'noise',
+      summary: `Ambiguous HTTP/code pairing: HTTP ${frame.http}, code ${frame.code}`,
+      detail: `Matches variants [${matches.map((v) => v.variant).join(', ')}]; semantic evidence is required before comparing body shapes` }];
+  }
+  const matched = matches[0];
   if (matched) {
     if (frame.response.bodyMeta?.source === 'missing' || frame.response.bodyMeta?.representation === 'base64') return [];
     return compareBody(bodyForAnalysis(frame.response), matched.schema).map((change) => ({

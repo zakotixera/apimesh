@@ -18,7 +18,7 @@ import type {
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const API_ID_RE = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
-const EXAMPLE_FILE_RE = /^([1-5][0-9]{2})\.(code-?[0-9]+|http-only)\.([a-z0-9]+(?:-[a-z0-9]+)*)\.json$/;
+const EXAMPLE_FILE_RE = /^([1-5][0-9]{2})\.(code-?[0-9]+|http-only)\.([a-z0-9]+(?:-[a-z0-9]+)*)(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)?\.json$/;
 
 /** Request parameter sections. */
 const PARAM_SECTIONS = ['query', 'body'] as const;
@@ -301,6 +301,19 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
           continue;
         }
         if (!ef.data) continue; // The load error was already recorded.
+
+        // Replay uses example requests; verify they actually belong to this definition.
+        if (ef.data.request?.method !== def.endpoint?.method) {
+          issues.push({ severity: 'error', code: 'example-method-mismatch', message: 'Example request method differs from definition.endpoint.method', file: ef.relFile });
+        }
+        try {
+          const url = new URL(ef.data.request?.url);
+          if (!['http:', 'https:'].includes(url.protocol) || url.pathname !== def.endpoint?.path) {
+            issues.push({ severity: 'error', code: 'example-url-mismatch', message: 'Example must use an HTTP(S) URL with the definition endpoint pathname', file: ef.relFile });
+          }
+        } catch {
+          issues.push({ severity: 'error', code: 'example-url-invalid', message: 'Example request URL is invalid', file: ef.relFile });
+        }
 
         // Check the example filename and its HTTP/code/variant components.
         const m = EXAMPLE_FILE_RE.exec(name);

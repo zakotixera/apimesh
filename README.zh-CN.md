@@ -90,8 +90,10 @@ npm run apic -- --help
 
 ```sh
 npm run typecheck
-npm run test:local
+npm test
 ```
+
+即使模板尚无应用数据，CI 也会测试完整的合成数据工作流。合集元数据起始模板位于 [`workflow/templates/`](workflow/templates/README.md)。运行 `npm run test:har -- "../../sources/capture.har"` 可在临时合集中检查真实 HAR 的处理兼容性与回放；该命令不导入规范数据，也不进行语义分类。
 
 ### 变更检查
 
@@ -111,6 +113,7 @@ npm run test:local
 |---|---|
 | `workflow/skills/` | 语义分析与流程编排指令 |
 | `workflow/cli/` | TypeScript 执行器、渲染器、回放服务、测试 |
+| `workflow/templates/` | 通过 Schema 校验的合集元数据起始模板 |
 | `schema/` | 规范数据的 JSON Schema |
 | `collection.json`、`glossary.json` | 共享元数据与词汇表 |
 | `sources/` | HAR 原始录制文件 |

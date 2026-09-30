@@ -20,14 +20,14 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 仅写本次涉及的：
 
 - `apis/<static path>/definition.json`
-- `apis/<static path>/examples/<http>.<codeN|http-only>.<variant>.json`
+- `apis/<static path>/examples/<http>.<codeN|http-only>.<variant>[.<recording-id>].json`
 - `glossary.json` 中有证据支持的新语义域
 
 例如 `/catalog/items` 对应 `apis/catalog/items/`；`ok` 变体的 HTTP 200、业务码 0 样例名为 `200.code0.ok.json`。文件名第三段与 variant 保持一致。
 
 ## 分类与合并
 
-1. **检查导入兼容性。** 保留脱敏标记、捕获时间、请求、响应与 body 表示。含 `request.bodyMeta` / `response.bodyMeta` 的帧按共享契约中的兼容性规则处理；schema 与消费链支持前保留在抽取目录，并报告阻塞原因。其他有效帧可以继续导入。
+1. **检查导入兼容性。** 保留脱敏标记、捕获时间、请求、响应与 body 表示。schema 支持 `request.bodyMeta` / `response.bodyMeta`；保留 JSON 文本和元数据，不转换或丢弃。缺失 body、未捕获的文件上传或不可回放的表示保留在抽取目录，按共享契约报告未决原因。请求 method 和 URL pathname 必须与 definition.endpoint 一致。
 2. **解析分类信号。** 对照帧 `code` 与响应 body。CLI 优先读取有限数字 `code`，其次读取有限数字 `errno`，否则返回 `null`。schema 要求业务码为整数；类型不支持或冗余值不一致时报告，不强制转换字符串码。仅 `null` 使用 `http-only`。JSON 文本可解析用于分析，存储值保持原样。
 3. **匹配已有变体。** 结合端点上下文、响应消息、结构和既有 examples，检查该接口的 `responses[]`。确认语义一致后合并；HTTP 状态码、业务码和 glossary 数值提示不能单独确定语义。
 4. **维护 glossary。** 没有对应变体时，参考 `known-codes`、`http-shapes` 和 `meaning`。有证据支持新语义时添加必要的 glossary 域，再引用其 slug；接口特有说明保留在 variant 的 `status` 中。
@@ -39,7 +39,7 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 ## 歧义与模型限制
 
 - **未分类观测：** 证据不足时保留原抽取结果，列出 method/path、文件、捕获时间、HTTP/code、已知证据、缺失信息及下一步。`unclassified` 是处理状态，不是预设 glossary slug；schema 未定义独立的 `flag` 字段。已确认部分可以导入，结果标记为「部分完成」。
-- **文件名冲突：** 同 endpoint / HTTP / code / variant 只能对应当前规范的一个文件名。已有记录与新帧相同则复用；不同时保留两份输入并报告冲突。新增后缀、替换记录或改变 slug 需要先解决数据模型限制。
+- **重复录制：** 相同 endpoint / HTTP / code / variant 可保留多个样例。已有记录与新帧相同则复用；不同时使用稳定的 `.recording-id` 后缀（小写字母、数字和连字符，例如脱敏帧的内容摘要），保留原文件名并添加引用。避免覆盖、顺序重编号或为文件名改变语义 slug。后缀仍冲突时保留两份输入并报告。
 - **端点冲突：** 每个目录只能包含一个 definition。同路径不同 method、不同 host 且语义不同，或动态路径无法映射到静态路径时，保留输入并报告建模限制，不覆盖已有定义或改写请求路径。
 - **输入保护：** 保持 `sources/`、抽取结果和 manifest 不变。任意文本或二进制可能仍含未脱敏信息；发现时保留待处理状态，避免复制到规范数据或交接内容。
 

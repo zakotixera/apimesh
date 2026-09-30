@@ -1,4 +1,4 @@
-/** TypeScript projections of canonical data, with optional CLI capture metadata. Canonical formats are defined in repository schemas; validation lives in validate.ts and lib/schemas.ts. */
+/** TypeScript projections of canonical data, including optional capture metadata. Canonical formats are defined in repository schemas; validation lives in validate.ts and lib/schemas.ts. */
 
 export type HttpMethod =
   | 'GET'
@@ -117,7 +117,7 @@ export interface ExampleResponse {
   bodyMeta?: BodyMetadata;
 }
 
-/** apis/<path>/examples/<http>.<code|http-only>.<slug>.json */
+/** apis/<path>/examples/<http>.<code|http-only>.<slug>[.<recording-id>].json */
 export interface Example {
   http: number;
   /** The body code, falling back to errno; null denotes an HTTP-only observation. */

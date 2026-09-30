@@ -87,7 +87,8 @@ export function startReplayServer(corpus: LoadedCorpus): Promise<ReplayServer> {
     const { text, json } = serializeBody(body, match.example.data.response.bodyMeta);
     const outHeaders: Record<string, string> = {};
     for (const [k, v] of Object.entries(recordedHeaders ?? {})) {
-      if (k.toLowerCase() === 'content-length') continue;
+      // HAR content is decoded independently of its original transport headers.
+      if (k.startsWith(':') || ['content-length', 'content-encoding', 'transfer-encoding'].includes(k.toLowerCase())) continue;
       outHeaders[k] = v;
     }
     if (json && !Object.keys(outHeaders).some((k) => k.toLowerCase() === 'content-type')) {

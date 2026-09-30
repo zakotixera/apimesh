@@ -17,8 +17,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "apic": "node ./dist/cli.js",
     "link": "npm link",
-    "test": "vitest run --passWithNoTests",
-    "test:local": "vitest run --config vitest.local.config.ts"
+    "pretest": "npm run build",
+    "test": "vitest run --passWithNoTests=false",
+    "test:local": "vitest run --config vitest.local.config.ts",
+    "test:har": "npm run build && node scripts/check-har.cjs",
+    "test:ablation": "npm run build && node scripts/ablate.cjs"
   },
   "dependencies": {
     "ajv": "^8.17.1",

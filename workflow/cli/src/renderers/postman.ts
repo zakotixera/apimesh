@@ -165,7 +165,7 @@ function toRequest(ex: Example): PostmanRequest {
   const request: PostmanRequest = {
     method: ex.request.method,
     // Transport headers must describe the outgoing body, not the captured bytes.
-    header: toHeaders(ex.request.headers).filter((h) => !['content-length', 'host', 'transfer-encoding'].includes(h.key.toLowerCase())),
+    header: toHeaders(ex.request.headers).filter((h) => !h.key.startsWith(':') && !['content-length', 'host', 'transfer-encoding'].includes(h.key.toLowerCase())),
     url: toPostmanUrl(ex.request.url),
   };
   if (ex.request.bodyMeta?.representation === 'params' && mediaType(mime) === 'multipart/form-data') {
@@ -246,7 +246,8 @@ function toRequestItem(
         originalRequest: request,
         status: REASON_PHRASES[ex.data.response.status] ?? '',
         code: ex.data.response.status,
-        header: toHeaders(savedHeaders),
+        // HAR body text has already been decoded; saved responses must describe that text.
+        header: toHeaders(savedHeaders).filter((h) => !h.key.startsWith(':') && !['content-length', 'content-encoding', 'transfer-encoding'].includes(h.key.toLowerCase())),
         cookie: [],
         body: stringifyResponseBody(ex.data.response),
         _postman_previewlanguage: preview,

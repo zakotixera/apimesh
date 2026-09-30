@@ -7,13 +7,13 @@
       "skills": [
         "classify"
       ],
-      "prompt": "Dry run only: classify four sanitized observations for GET /catalog/items. Existing not-found has codes [1004], http [200], and 200.code1004.not-found.json; its body says the item is missing. Frame A is a complete HTTP 404 capture, no business code, same missing-item meaning, captured 2026-09-28T01:00:00Z, no bodyMeta. Frame B is another HTTP 200/code 1004 capture with different request query and body than the existing file, no bodyMeta. Frame C is HTTP 200/code 0 with response.body as JSON text and response.bodyMeta {representation: text, source: text, mimeType: application/json}; current example schema rejects bodyMeta. Frame D is HTTP 200/code 78123 with an unexplained opaque message. Give per-frame decisions, exact filenames where applicable, proposed mutations and unresolved items; do not execute CLI commands or edit repository data.",
-      "expected_output": "Merge A into not-found using its HTTP-only filename; retain B as a filename collision; retain C pending bodyMeta support; leave D unclassified with its evidence gaps identified. Preserve existing identifiers, filenames, body text and metadata, and report partial completion.",
+      "prompt": "Dry run only: classify four sanitized observations for GET /catalog/items. Existing not-found has codes [1004], http [200], and 200.code1004.not-found.json; its body says the item is missing. Frame A is a complete HTTP 404 capture, no business code, same missing-item meaning, captured 2026-09-28T01:00:00Z, no bodyMeta. Frame B is another HTTP 200/code 1004 capture with different request query and body than the existing file, no bodyMeta; its message confirms the same missing-item meaning. Frame C is HTTP 200/code 0 with response.body as JSON text and response.bodyMeta {representation: text, source: text, mimeType: application/json}; its message explicitly says the item was retrieved successfully, and glossary ok means successful retrieval; the current example schema supports bodyMeta. Frame D is HTTP 200/code 78123 with an unexplained opaque message. Give per-frame decisions, exact filenames where applicable, proposed mutations and unresolved items; do not execute CLI commands or edit repository data.",
+      "expected_output": "Merge A into not-found using its HTTP-only filename; preserve B alongside the existing example using a stable recording suffix; import C into ok while retaining JSON text and metadata; leave D unclassified. Keep existing identifiers and filenames stable and report partial completion for D.",
       "files": [],
       "assertions": [
         "Merges frame A into not-found with 404.http-only.not-found.json, retains code 1004 and adds HTTP 404.",
-        "Preserves the existing recording and filename for B, retains the new frame, and reports the collision without adding a suffix or changing the variant.",
-        "Defers importing C because the schema rejects bodyMeta, preserving the original text body and metadata in the draft.",
+        "Preserves the existing recording and filename for B, adds B with a stable recording suffix under not-found, and references both without renaming the semantic variant.",
+        "Imports C into ok using supported bodyMeta, preserving the original stored JSON text and metadata rather than parsing it into an object.",
         "Leaves D unclassified and the glossary unchanged because code 78123 alone does not establish response meaning.",
         "Reports unresolved frames and pending validation, and marks the import as incomplete."
       ]
@@ -24,15 +24,15 @@
       "skills": [
         "pipeline"
       ],
-      "prompt": "Dry run only: give an executable recovery plan for importing sources/capture one.har and sources/capture two.har on Windows PowerShell. The CLI has not been built or linked. The working tree has unrelated edits. A previous extract stopped because .raw/GET.catalog.items.yaml was modified; no valid manifest owns that file. Only local results were requested. Assume classification later reports one unsupported bodyMeta frame while other frames can be imported. State commands, working directories, handoffs, failure handling and completion criteria. Include how to check rendering stability when generated files are untracked. Do not run the pipeline or edit repository data.",
-      "expected_output": "Build and invoke the local CLI, supply explicit quoted HAR paths as one batch, choose fresh --out and pass it to classify, preserve unrelated work, report partial import, compare paths and hashes across two renders, keep delivery local.",
+      "prompt": "Dry run only: give an executable recovery plan for importing sources/capture one.har and sources/capture two.har on Windows PowerShell. The CLI has not been built or linked. The working tree has unrelated edits. A previous extract stopped because .raw/GET.catalog.items.yaml was modified; no valid manifest owns that file. Only local results were requested. Assume classification later reports one frame with response.bodyMeta.source missing and no captured response body while other frames can be imported. State commands, working directories, handoffs, failure handling and completion criteria. Include how to check rendering stability when generated files are untracked. Do not run the pipeline or edit repository data.",
+      "expected_output": "Build and invoke the local CLI, supply explicit quoted HAR paths as one batch, choose fresh --out and pass it to classify, preserve unrelated work, report partial import for the missing response body, compare paths and hashes across two renders, keep delivery local.",
       "files": [],
       "assertions": [
         "Builds and invokes the local CLI from workflow/cli, passing both spaced HAR paths as one batch.",
         "Uses a fresh --out directory and passes that directory to classify, preserving the modified draft and manifest.",
         "Preserves unrelated changes and keeps delivery local without creating a PR.",
         "Compares generated file paths and content hashes across consecutive renders, including untracked files.",
-        "Reports partial completion for the unsupported bodyMeta frame even if the remaining corpus checks pass."
+        "Reports partial completion for the missing response body even if the remaining corpus checks pass; does not invent a response or discard its metadata."
       ]
     },
     {

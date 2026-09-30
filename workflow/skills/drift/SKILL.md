@@ -18,7 +18,7 @@ description: 结合新捕获与既有规范数据，评估 apic drift 报告中�
 
 当前结构定义在 `workflow/cli/src/lib/types.ts` 的 `DriftReport` / `DriftChange`：顶层有 `command`、`baseline`、`changes`、`breaking`、`nonBreaking`、`noise`；每条 change 有 `api`、`kind`、`summary`、`detail`。`baseline` 当前记录输入 HAR 文件名，不是旧 canonical 版本标识；应核对报告对应的 canonical 是否仍是当前版本。
 
-报告结构以本地实现为准。CLI 发现差异时也可返回退出码 0；空 changes 仅表示当前规则未检测到差异。CLI 按 method/path 与 HTTP/code 匹配；同时包含业务码和 HTTP-only 观测的变体、值变化，以及缺失或二进制 body 需要结合录制内容核查。
+报告结构以本地实现为准。CLI 发现差异时也可返回退出码 0；空 changes 仅表示当前规则未检测到差异。CLI 按 method/path 与录制样例中的 HTTP/code 组合匹配；没有样例时回退到声明数组。多个变体匹配时报告歧义，不按数组顺序猜测。值变化、缺失或二进制 body 仍需结合录制内容核查。
 
 ## 逐条评估
 

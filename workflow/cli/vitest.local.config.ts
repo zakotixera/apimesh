@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
-// Run CLI tests with synthetic fixtures; the full suite also checks repository schemas.
+// Run focused CLI checks; the full suite also checks schemas and the compiled workflow.
 export default defineConfig({
   root: import.meta.dirname,
   test: {
     include: ['test/**/*.test.ts'],
-    exclude: ['test/schemas.test.ts'],
+    exclude: ['test/schemas.test.ts', 'test/workflow.test.ts'],
   },
 });

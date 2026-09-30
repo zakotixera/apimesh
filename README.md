@@ -90,8 +90,10 @@ CLI checks, from `workflow/cli`:
 
 ```sh
 npm run typecheck
-npm run test:local
+npm test
 ```
+
+CI tests a complete synthetic workflow even in this unpopulated template. Collection metadata starters are in [`workflow/templates/`](workflow/templates/README.md). To check a real HAR in a temporary collection, run `npm run test:har -- "../../sources/capture.har"`; this checks processing and replay without importing or semantically classifying the recordings.
 
 ### Contribution checks
 
@@ -111,6 +113,7 @@ Verification scope: structural consistency, reproducibility, committed-output sy
 |---|---|
 | `workflow/skills/` | Semantic work and orchestration instructions |
 | `workflow/cli/` | TypeScript executor, renderers, replay server, tests |
+| `workflow/templates/` | Schema-checked collection metadata starters |
 | `schema/` | Canonical JSON Schemas |
 | `collection.json`, `glossary.json` | Shared metadata and vocabulary |
 | `sources/` | HAR source recordings |

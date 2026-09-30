@@ -31,7 +31,7 @@ function renderApiPage(corpus: LoadedCorpus, relDir: string): string {
   lines.push(`- **endpoint**: \`${def.endpoint.method} ${def.endpoint.path}\``);
   lines.push(`- **source**: \`${def.source}\``);
   lines.push(`- **tags**: ${def.tags && def.tags.length > 0 ? def.tags.map((t) => `\`${t}\``).join(', ') : '—'}`);
-  lines.push(`- **auth**: \`${def.auth ?? 'none'}\``);
+  lines.push(`- **auth**: \`${def.auth ?? 'unknown'}\``);
   lines.push('');
 
   // Request query and body parameters.
@@ -44,15 +44,15 @@ function renderApiPage(corpus: LoadedCorpus, relDir: string): string {
   const paramRows: string[] = [];
   for (const [section, params] of paramSections) {
     for (const [name, param] of Object.entries(params ?? {})) {
-      const required = param.required === true ? 'yes' : 'no';
+      const required = param.required === undefined ? 'unknown' : param.required ? 'yes' : 'no';
       const fallback = param.default === undefined ? '—' : `\`${cell(JSON.stringify(param.default))}\``;
       paramRows.push(
-        `| ${section} | \`${name}\` | ${param.type ?? 'string'} | ${required} | ${fallback} | ${cell(param.desc)} |`,
+        `| ${section} | \`${name}\` | ${param.type ?? 'unknown'} | ${required} | ${fallback} | ${cell(param.desc)} |`,
       );
     }
   }
   if (paramRows.length === 0) {
-    lines.push('_No parameters._');
+    lines.push('_No parameters documented._');
   } else {
     lines.push('| in | name | type | required | default | desc |');
     lines.push('|---|---|---|---|---|---|');

@@ -27,10 +27,10 @@ Pipeline coordinates these responsibilities and uses classify or drift for canon
 ## Evidence and compatibility
 
 - Use sanitized extraction drafts and canonical examples for semantic work. Preserve placeholders and redaction markers. Keep original credentials and other unmasked sensitive values out of canonical data and reports.
-- The canonical example schema currently rejects extraction's optional `bodyMeta`. Retain affected drafts and report the compatibility issue. Preserve metadata and stored JSON text; removing metadata, replacing text with parsed objects, or moving metadata to an ignored `x-` field would lose information needed by consumers.
+- The canonical example schema accepts optional `bodyMeta` and checks its representation against the stored body. Preserve metadata and JSON text, including numeric literals. Missing bodies and uncaptured multipart files remain explicit; schema validity does not make them replayable. Retain such drafts as unresolved when the requested workflow requires replay.
 - Examples in these instructions are synthetic. Derive endpoint paths, authentication names, business codes, and meanings from the current collection and its recordings.
 - Keep API identity, semantic slugs, and existing recordings stable. Do not infer authentication requirements, parameter requiredness, or guaranteed behavior from one observation.
-- The example filename is exactly `<http>.<codeN|http-only>.<variant>.json`; variant is a glossary slug. Each tuple has one filename under the current model. Preserve both inputs when distinct recordings collide; storing both requires an explicit change to the model rather than a filename suffix or overwrite.
+- Example filenames are `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`; variant is a glossary slug. The optional recording ID is a lowercase alphanumeric/hyphen slug (for example, a digest of the sanitized frame). Keep existing filenames stable. Reuse an identical recording; give distinct recordings stable suffixes without overwriting or renumbering existing files. Every filename must be referenced by exactly one variant.
 - Consumers need explicit support for data stored in `x-` extension fields.
 
 ## Serialization and validation

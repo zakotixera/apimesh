@@ -29,7 +29,7 @@ export function renderAgent(corpus: LoadedCorpus): GeneratedFile[] {
         path: def.endpoint.path,
         source: def.source,
         tags: def.tags ?? [],
-        auth: def.auth ?? 'none',
+        ...(def.auth === undefined ? {} : { auth: def.auth }),
         variants: def.responses.map((variant) => ({
           variant: variant.variant,
           status: variant.status,
@@ -58,7 +58,7 @@ export function renderAgent(corpus: LoadedCorpus): GeneratedFile[] {
     lines.push(`## ${def.name} (\`${def.api}\`)`);
     lines.push('');
     lines.push(
-      `\`${def.endpoint.method} ${def.endpoint.path}\` · source \`${def.source}\` · auth \`${def.auth ?? 'none'}\``,
+      `\`${def.endpoint.method} ${def.endpoint.path}\` · source \`${def.source}\` · auth \`${def.auth ?? 'unknown'}\``,
     );
     lines.push('');
     for (const variant of def.responses) {

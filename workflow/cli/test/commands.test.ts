@@ -55,4 +55,36 @@ describe('CLI commands with isolated fixtures', () => {
     await driftCommand().parseAsync([input], { from: 'user' });
     expect(JSON.parse(fs.readFileSync(path.join(project.reports, 'drift-input.json'), 'utf8')).changes).toEqual([]);
   });
+
+  it.each([
+    ['recorded HTTP-only pair', 404, null, false, []],
+    ['unobserved Cartesian pair', 404, 1004, false, ['breaking']],
+    ['ambiguous semantic variants', 200, 1004, true, ['noise']],
+  ])('handles %s without guessing a variant', async (_label, status, code, ambiguous, kinds) => {
+    const { project, input } = fixture();
+    const dir = path.join(project.apis, 'x');
+    fs.mkdirSync(path.join(dir, 'examples'), { recursive: true });
+    const variants = [{ variant: 'not-found', status: 'Missing item', http: [200, 404], codes: [1004],
+      schema: { type: 'object' }, examples: ['200.code1004.not-found.json', '404.http-only.not-found.json'] }];
+    const recording = (http: number, businessCode: number | null) => ({
+      http, code: businessCode, captured: '2026-01-01T00:00:00Z', account: 'anonymous',
+      request: { method: 'POST', url: 'https://example.invalid/x', body: null },
+      response: { status: http, body: businessCode === null ? { message: 'missing' } : { code: businessCode } },
+    });
+    fs.writeFileSync(path.join(dir, 'examples/200.code1004.not-found.json'), JSON.stringify(recording(200, 1004)));
+    fs.writeFileSync(path.join(dir, 'examples/404.http-only.not-found.json'), JSON.stringify(recording(404, null)));
+    if (ambiguous) {
+      variants.push({ variant: 'other', status: 'Other meaning', http: [200], codes: [1004], schema: { type: 'string' }, examples: ['200.code1004.other.json'] });
+      fs.writeFileSync(path.join(dir, 'examples/200.code1004.other.json'), JSON.stringify(recording(200, 1004)));
+    }
+    fs.writeFileSync(path.join(dir, 'definition.json'), JSON.stringify({ api: 'x.test', name: 'Test',
+      endpoint: { method: 'POST', path: '/x' }, source: 'synthetic', responses: variants }));
+    const har = JSON.parse(fs.readFileSync(input, 'utf8'));
+    har.log.entries[0].response = { status, content: { mimeType: 'application/json', text: JSON.stringify(code === null ? { message: 'missing' } : { code }) } };
+    fs.writeFileSync(input, JSON.stringify(har));
+    await driftCommand().parseAsync([input], { from: 'user' });
+    const report = JSON.parse(fs.readFileSync(path.join(project.reports, 'drift-input.json'), 'utf8'));
+    expect(report.changes.map((change: { kind: string }) => change.kind)).toEqual(kinds);
+    if (ambiguous) expect(report.changes[0].summary).toContain('Ambiguous');
+  });
 });

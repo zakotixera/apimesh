@@ -19,7 +19,7 @@ description: 编排 HAR 导入、分类、可选说明、校验、渲染和本�
 | 步骤 | 操作 | 完成证据 / 失败处理 |
 |---|---|---|
 | 1 抽取 | `npm run apic -- extract <明确的 HAR 路径列表>` | 核对退出码、报告、YAML 文件与帧数。结果为空或解析失败时先检查输入 |
-| 2 分类 | 读取并执行 [classify](../classify/SKILL.md) | 记录文件清单、分类依据与未决帧。保留未分类、bodyMeta 不兼容或文件名冲突的帧，并说明处理状态 |
+| 2 分类 | 读取并执行 [classify](../classify/SKILL.md) | 记录文件清单、分类依据与未决帧。保留未分类、缺失 body 或尚未解决的端点冲突的帧，并说明处理状态 |
 | 3 可选导读 | 需要新增或更新说明时执行 [notes](../notes/SKILL.md) | 说明与本次变更接口一致；缺少说明不阻断导入，已有说明受变更影响时应同步修正 |
 | 4 校验 | `npm run apic -- validate` | `.reports/validate.json` 无错误；保留警告信息。根据诊断定位规范数据、schema 或 CLI 的问题 |
 | 5 渲染 | `npm run apic -- render --all` | 生成文档、Agent 参考和 Postman 产物；失败时检查输入与渲染器，修复后重新生成 |

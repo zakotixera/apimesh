@@ -38,13 +38,19 @@ Postman exports always use `dist/postman/endpoints.postman_collection.json` and 
 
 After upgrading from older exports, run `render --postman` before `test` and update imports or automation to the filenames above.
 
-Body handling preserves captured text and JSON numeric literals during masking. Opaque binary and arbitrary text/XML are not guaranteed to be sanitized. CLI support for `bodyMeta` is not yet accepted by the canonical [example schema](../../schema/example.schema.json).
+Body handling preserves captured text and JSON numeric literals during masking. Opaque binary and arbitrary text/XML are not guaranteed to be sanitized. The canonical [example schema](../../schema/example.schema.json) accepts optional `bodyMeta` for text, parsed JSON, request parameters, binary responses, and missing captures; it rejects inconsistent body/metadata combinations. Missing bodies, binary requests, and uncaptured file uploads cannot complete replay. Recorded URL queries may retain masking placeholders. HTTP/2 pseudo-headers are omitted from Postman requests; replay and saved responses omit original compression and length headers because HAR bodies are already decoded.
 
 Replay requires matching recorded requests and exercising every canonical recording. It verifies artifacts against captures, not live API availability.
 
 ## Verification
 
-Run `npm run typecheck` and `npm run test:local` for CLI-local checks with synthetic fixtures. `npm test` also checks synthetic definitions against the repository's shared schemas. Neither suite depends on application-specific endpoints or recordings.
+Run `npm run typecheck` and `npm run test:local` for focused CLI checks with synthetic fixtures. `npm test` builds the CLI first and also checks the shared schema contract, starter templates, complete workflow, and collection/template detection. Neither suite depends on application-specific endpoints or recordings. Both fail on empty suites.
+
+For a local capture compatibility check, run `npm run test:har -- "../../sources/capture.har"`. It creates a temporary collection from the empty starter templates, adds test-only origins and vocabulary, preserves all extracted recordings with stable filename suffixes, validates, compares extraction/render snapshots, replays every recording, independently checks capture fidelity, and checks baseline drift. It removes the temporary collection afterward and reports aggregate counts without capture values. This checks processing compatibility, not semantic classification; it does not import into `apis/` or modify source HAR files. Unsupported captures fail explicitly.
+
+Run `npm run test:ablation` for controlled removals using synthetic data, or append `-- "../../sources/capture.har"` for local evidence. See [ablation results](test/ABLATIONS.md) and [data definitions](../../schema/README.md). Schemas establish structural validity; replay capability, capture fidelity, and semantic classification are separate checks. Omitted auth/type/requiredness remains unknown in generated documentation; unknown auth is omitted from the agent index.
+
+Example filenames accept `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`. Existing names remain valid; use stable lowercase alphanumeric/hyphen suffixes for distinct recordings sharing an outcome. Validation checks request method and URL pathname against the owning definition. Drift uses observed HTTP/code pairs and reports ambiguous variant matches instead of choosing the first.
 
 Newman's pinned dependencies require three compatibility overrides: `postman-request` uses the version already required by Newman to remove `har-validator`; `serialised-error` uses UUID 8's supported `v4` API; and `postman-collection` uses Faker 6, which retains its CommonJS locale API. Dependency compatibility tests cover dynamic variables and decorated errors; replay tests cover HTTP requests. Recheck these overrides when upgrading Newman. Some upstream calls still emit API deprecation warnings.
 

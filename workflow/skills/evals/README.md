@@ -10,4 +10,4 @@ To compare a revision:
 4. Grade each assertion using evidence from the answer. Write sibling `grading.json` files using `expectations: [{text, passed, evidence}]` and a pass/fail summary. Record CLI execution only when it was performed.
 5. Summarize the comparison, sample size, and limitations. Include timing or token metrics only when measured by the runner. A review page may be generated with available evaluation tools.
 
-The cases cover collisions, unsupported captures, Windows recovery, semantic drift, and notes grounded in evidence. Automatic skill selection and end-to-end import behavior require separate evaluation cases or isolated corpus fixtures with the relevant CLI checks.
+The cases cover multiple recordings, supported capture metadata, missing bodies, Windows recovery, semantic drift, and notes grounded in evidence. Automatic skill selection and semantic import behavior require separate evaluation. The CLI's `npm test` exercises a complete synthetic processing workflow; `npm run test:har -- <path>` checks a real capture in an isolated temporary collection without performing semantic classification.

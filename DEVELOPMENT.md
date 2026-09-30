@@ -2,7 +2,7 @@
 
 Fork apimesh to maintain recorded API behavior for a specific application. Add application metadata and HAR recordings, classify the observations into canonical definitions and examples, then generate documentation, Agent references, and Postman artifacts.
 
-The upstream repository supplies the CLI, schemas, skills, and directory structure. Your fork supplies `collection.json`, `glossary.json`, recordings under `sources/`, and the resulting application data. Collection commands and the full CI workflow require these inputs; an unpopulated fork is not a completed collection.
+The upstream repository supplies the CLI, schemas, skills, and directory structure. Your fork supplies `collection.json`, `glossary.json`, recordings under `sources/`, and the resulting application data. Collection commands require these inputs. CI always tests a synthetic collection; application validation, output synchronization, and replay run once collection metadata exists. Partially configured collections fail CI; an unpopulated fork is not a completed collection.
 
 ## 1. Fork and clone
 
@@ -24,7 +24,7 @@ Install Git, Node.js **20+**, and npm. Use an agent that can read the repository
 
 ## 2. Add collection metadata
 
-Create both files below at the repository root, alongside `workflow/` and `schema/`. The examples describe a synthetic catalog application; replace the name, host, authentication fields, and vocabulary with those relevant to your application.
+Copy the starter files from [`workflow/templates/`](workflow/templates/README.md) to the repository root, alongside `workflow/` and `schema/`, then customize them as shown below. The examples describe a synthetic catalog application; replace the name, host, authentication fields, and vocabulary with those relevant to your application.
 
 ### `collection.json`
 
@@ -78,7 +78,7 @@ The full contract is in [collection.schema.json](schema/collection.schema.json).
 }
 ```
 
-The [glossary schema](schema/glossary.schema.json) requires at least one domain. Start with a semantic term relevant to your application, then add terms as recordings establish additional outcomes. Slugs use lowercase letters, digits, and hyphens. Optional `known-codes` and `http-shapes` arrays provide classification hints; leave them out until supported by evidence. A response is not classified as successful solely because it has HTTP 200 or business code 0.
+The [glossary schema](schema/glossary.schema.json) permits an empty vocabulary while a collection is being initialized. Add semantic terms as recordings establish their meaning; every canonical variant must reference a registered term. Slugs use lowercase letters, digits, and hyphens. Optional `known-codes` and `http-shapes` arrays provide classification hints; leave them out until supported by evidence. A response is not classified as successful solely because it has HTTP 200 or business code 0.
 
 Keep the existing `workflow/` and `schema/` directories. The CLI locates the collection root by finding both `collection.json` and `workflow/`; there is no initialization command that creates these files.
 
@@ -139,7 +139,9 @@ Ask your agent to follow [classify](workflow/skills/classify/SKILL.md), for exam
 
 Alternatively, after adding the metadata and HAR files, ask the agent to follow [pipeline](workflow/skills/pipeline/SKILL.md) for extraction through verification in one task. Specify the HAR paths and whether you want local results or a PR in your fork.
 
-**Current compatibility limit:** extraction includes `bodyMeta` for captured bodies, but the canonical example schema does not yet accept that field. Ordinary HAR imports can therefore stop at classification. Retain affected drafts and report the blocker; completing those imports requires a coordinated schema and consumer update. Do not remove metadata, replace stored JSON text with parsed objects, or move metadata into ignored extension fields to make validation pass. Other supported frames may proceed, with the import reported as partial.
+**Body preservation:** the canonical schema accepts extraction's `bodyMeta`. Keep captured JSON as text and retain metadata so numeric literals, empty bodies, and missing captures remain distinguishable. Missing request/response bodies, binary requests, and uncaptured multipart uploads cannot complete replay; retain those drafts and report partial completion instead of inventing content.
+
+Before semantic classification, you can check a capture in an isolated temporary collection with `npm run test:har -- "../../sources/capture.har"`. This validates processing compatibility and replay without changing your canonical data or claiming to classify response meanings.
 
 Classification creates application data such as:
 
@@ -153,9 +155,9 @@ apis/
       notes.md
 ```
 
-This layout is illustrative; create definitions and examples only from your application's evidence. For `/catalog/items`, the definition belongs in `apis/catalog/items/`. Each definition has a unique dotted API identifier, structured `endpoint.method` and `endpoint.path`, a source description, and semantic response variants. Each variant references glossary terms and recorded examples. Example filenames follow `<http>.<codeN|http-only>.<variant>.json`; use `http-only` when the business code is `null`.
+This layout is illustrative; create definitions and examples only from your application's evidence. For `/catalog/items`, the definition belongs in `apis/catalog/items/`. Each definition has a unique dotted API identifier, structured `endpoint.method` and `endpoint.path`, a source description, and semantic response variants. Each variant references glossary terms and recorded examples. Example filenames follow `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`; use `http-only` when the business code is `null`. A stable lowercase alphanumeric/hyphen suffix allows multiple recordings of the same outcome, for example `200.code0.ok.capture-a.json`. Keep existing filenames and references stable.
 
-The current model supports one definition per path directory and one example filename per HTTP/code/variant combination. Conflicting methods or hosts, and distinct recordings sharing one filename, need a modeling decision before import. Preserve both inputs and report the conflict.
+The current model supports one definition per path directory. Conflicting methods or hosts still need a modeling decision before import. Preserve both inputs and report such conflicts. Distinct recordings of one outcome use separate recording suffixes; reuse identical examples without overwriting.
 
 Use the optional [notes](workflow/skills/notes/SKILL.md) skill for brief explanations grounded in definitions and examples. Schemas and detailed merge rules remain in [schema/](schema/) and the classification instructions.
 
@@ -220,7 +222,7 @@ git commit -m "feat: add initial catalog API collection"
 git push -u origin setup/collection
 ```
 
-Open the PR against your application's fork and confirm its base repository. Enable GitHub Actions in the fork if needed. The [CI workflow](.github/workflows/ci.yml) builds and tests the CLI on Node 20, 22, and 24, validates canonical data, renders twice, checks committed output synchronization, and runs replay. Its `gate` job succeeds only when every runtime passes. Adding HAR files alone is insufficient: classification and committed generated artifacts must also be complete.
+Open the PR against your application's fork and confirm its base repository. Enable GitHub Actions in the fork if needed. The [CI workflow](.github/workflows/ci.yml) builds and tests the CLI on Node 20, 22, and 24 on Ubuntu. The synthetic workflow runs for both templates and collections. Populated collections also validate canonical data, render twice, check committed output synchronization, and run replay. Its `gate` job succeeds only when every runtime passes. Adding HAR files alone is insufficient: classification and committed generated artifacts must also be complete.
 
 A completed import has no unresolved target frames, passes validation and replay, produces stable output, and includes the reviewed data and artifacts in the commit. If only a supported subset was imported, list the remaining drafts and blockers in the PR.
 
