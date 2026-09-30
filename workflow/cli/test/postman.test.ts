@@ -2,38 +2,53 @@ import { describe, expect, it } from 'vitest';
 import { renderPostman } from '../src/renderers/postman';
 import { corpus, example } from './fixtures';
 
+function exported(data = corpus([example()])) {
+  const files = renderPostman(data);
+  return { files, collection: JSON.parse(files[0].content), environment: JSON.parse(files[1].content) };
+}
+function resolveUrl(request: any, collection: any): string {
+  return request.url.raw.replace(/^\{\{([^}]+)\}\}/, (_match: string, key: string) => collection.variable.find((v: any) => v.key === key).value);
+}
+
 describe('application-independent Postman exports', () => {
-  it('uses fixed filenames and reads display metadata and hosts from the corpus', () => {
-    const data = corpus([example()]);
+  it('routes each recording to its actual origin, including unconfigured hosts', () => {
+    const records = ['https://shop.example.invalid/x?a=1', 'https://api.example.invalid/x?a=2', 'https://other.example.invalid/x?a=3'].map((url) => example({ url }));
+    const data = corpus(records);
     data.collection.name = 'Catalog / staging';
-    data.collection.bases = { service: 'https://catalog.example.invalid' };
-    const files = renderPostman(data);
-    expect(files.map((file) => file.path)).toEqual([
-      'postman/endpoints.postman_collection.json',
-      'postman/replay.postman_environment.json',
-    ]);
-    const collection = JSON.parse(files[0].content);
+    data.collection.bases = { shop: 'https://shop.example.invalid', api: 'https://api.example.invalid' };
+    const { files, collection, environment } = exported(data);
+    expect(files.map((file) => file.path)).toEqual(['postman/endpoints.postman_collection.json', 'postman/replay.postman_environment.json']);
     expect(collection.info.name).toBe('Catalog / staging');
-    expect(collection.variable).toEqual([
-      { key: 'baseUrl', value: 'https://catalog.example.invalid', type: 'string' },
-    ]);
-    const environment = JSON.parse(files[1].content);
-    expect(environment.name).toBe('Catalog / staging · local replay');
+    expect(collection.item[0].item.map((i: any) => resolveUrl(i.request, collection))).toEqual(records.map((ex) => ex.request.url));
+    expect(environment.values).toContainEqual({ key: 'apicReplay', value: 'true', enabled: true, type: 'default' });
     expect(environment.values[0].value).toBe('http://127.0.0.1:4010');
   });
-
-  it('chooses the same base regardless of metadata key insertion order', () => {
+  it('is deterministic regardless of metadata key insertion order', () => {
     const data = corpus([example()]);
-    data.collection.bases = { zeta: 'https://z.example.invalid', alpha: 'https://a.example.invalid' };
+    data.collection.bases = { zeta: 'https://example.invalid', alpha: 'https://example.invalid' };
     const first = renderPostman(data);
-    data.collection.bases = { alpha: 'https://a.example.invalid', zeta: 'https://z.example.invalid' };
+    data.collection.bases = { alpha: 'https://example.invalid', zeta: 'https://example.invalid' };
     expect(renderPostman(data)).toEqual(first);
-    expect(JSON.parse(first[0].content).variable[0].value).toBe('https://a.example.invalid');
   });
-
-  it('uses local replay when the corpus has no configured bases', () => {
+  it('preserves the recorded host when no base is configured', () => {
     const data = corpus([example()]);
     data.collection.bases = {};
-    expect(JSON.parse(renderPostman(data)[0].content).variable[0].value).toBe('http://127.0.0.1:4010');
+    const { collection } = exported(data);
+    expect(resolveUrl(collection.item[0].item[0].request, collection)).toBe(data.apis[0].examples[0].data.request.url);
+  });
+  it('declares request placeholders disabled for replay and keeps response-only markers out', () => {
+    const ex = example({ body: { token: '{{session_token}}' } });
+    ex.response.body = { code: 0, user: '{{response_only}}' };
+    const { environment } = exported(corpus([ex]));
+    expect(environment.values).toContainEqual({ key: 'session_token', value: '', enabled: false, disabled: true, type: 'secret' });
+    expect(environment.values.some((v: any) => v.key === 'response_only')).toBe(false);
+  });
+  it('distinguishes observed events while keeping stable recording filenames', () => {
+    const data = corpus([example({ body: { event: 'view' } }), example({ body: { event: 'click' } })]);
+    const items = exported(data).collection.item[0].item;
+    expect(items[0].name).toContain('view');
+    expect(items[1].name).toContain('click');
+    expect(items.map((i: any) => i.response[0].name)).toEqual(['0.json', '1.json']);
+    expect(items[0].request.description).toContain('apis/x/examples/0.json');
   });
 });

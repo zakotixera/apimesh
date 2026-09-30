@@ -61,7 +61,7 @@ Copy the starter files from [`workflow/templates/`](workflow/templates/README.md
 
 Use actual header or cookie names as both the `auth` key and its `name`. The masker derives placeholders such as `{{SESSION_ID}}` from `name`, while validation checks registration keys. Store descriptions here, never credential values. Registered names also participate in query and body masking; the CLI applies additional generic redaction rules.
 
-Add each API host to `bases` with a stable label. An explicit `extract --origin` value should match one of these labels. Postman currently uses one `baseUrl` for all requests, so collections spanning several hosts require selecting the appropriate host when used outside managed replay.
+Add each API host to `bases` with a stable label. An explicit `extract --origin` value should match one of these labels. Postman preserves each recorded origin with a separate base URL variable. The local replay environment overrides those variables through request scripts when `apicReplay=true`.
 
 The full contract is in [collection.schema.json](schema/collection.schema.json).
 
@@ -180,6 +180,8 @@ Resolve validation errors before continuing. Review warnings; use `validate --st
 | `dist/postman/` | `endpoints.postman_collection.json` and `replay.postman_environment.json` |
 
 Edit canonical inputs or renderer source, then regenerate outputs. `apic test` starts a local replay server, checks generated requests against recordings, and shuts the server down. It requires every canonical recording to be exercised. Passing replay does not verify live application availability.
+
+For interactive Postman replay, run `npm run apic -- serve` and leave it running. Import the generated collection and local replay environment, select that environment, and send a recording. Stop with Ctrl+C. If using `serve --port 4011`, update the environment's `baseUrl` accordingly. The generated `dist/docs/usage.md` explains live setup and masked request values. Agent index format 2 links separate endpoint detail files; JSON paths are repository-relative.
 
 Also verify that two renders produce the same file paths and bytes, including untracked files. For example, in PowerShell from `workflow/cli`, after the first render:
 

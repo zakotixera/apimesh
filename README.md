@@ -107,6 +107,8 @@ CI tests a complete synthetic workflow even in this unpopulated template. Collec
 
 Verification scope: structural consistency, reproducibility, committed-output synchronization, and recorded-behavior replay. Live availability and unobserved behavior are outside replay coverage.
 
+For interactive Postman replay, run `npm run apic -- serve` from `workflow/cli` and select the generated local replay environment. Each request preserves its recorded host for live use. The [artifact guide](dist/README.md) links consumer documentation.
+
 ## Project structure
 
 | Path | Role |

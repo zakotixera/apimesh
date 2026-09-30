@@ -20,7 +20,7 @@ Omitted `auth`, parameter `type`, and parameter `required` mean unknown. Explici
 
 Validation checks declared types recursively against each referenced example, parsing captured JSON text for analysis without changing storage. Additional object fields and absent fields are allowed; neither a closed-object contract nor requiredness is inferred. Missing and binary captures are not checked as JSON/text shapes. Structurally invalid documents are reported before semantic checks; other files are still checked and a validation report is written.
 
-Human-readable templates label parameter `default` as **observed value**, show unknown declarations explicitly, and include response type trees. The agent index preserves request definitions and response shapes without filling in unknown declarations. Starter files contain only collection metadata and empty vocabulary; endpoint definitions must come from evidence.
+Human-readable templates label parameter `default` as **observed value**, show unknown declarations explicitly, and include response type trees. Agent endpoint detail files preserve request definitions and response shapes without filling in unknown declarations. Agent index format 2 is a compact manifest that links those files; all JSON file references are repository-relative. Starter files contain only collection metadata and empty vocabulary; endpoint definitions must come from evidence.
 
 | Body representation | Stored body | Meaning |
 |---|---|---|

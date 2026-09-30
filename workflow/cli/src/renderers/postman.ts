@@ -6,6 +6,7 @@ import { compareCodepoint } from '../lib/stable-json';
 import { stableStringify } from '../lib/stable-json';
 import { headerValue, isJsonMime, mediaType, requestBodyText, requestMime, responseHeaders } from '../lib/body';
 import type { BodyParam } from '../lib/types';
+import { examplePath, placeholders, recordingLabel } from './presentation';
 
 export const POSTMAN_COLLECTION_FILE =
   'postman/endpoints.postman_collection.json';
@@ -93,6 +94,7 @@ interface PostmanBody {
 }
 
 interface PostmanRequest {
+  description?: string;
   method: string;
   header: PostmanHeader[];
   url: PostmanUrl;
@@ -149,24 +151,24 @@ function parseQuery(search: string): PostmanQueryItem[] {
 }
 
 /** Replace the captured URL origin with the baseUrl variable. */
-function toPostmanUrl(urlText: string): PostmanUrl {
+function toPostmanUrl(urlText: string, baseVariable: string): PostmanUrl {
   const url = new URL(urlText);
   return {
-    raw: `{{baseUrl}}${url.pathname}${url.search}`,
-    host: ['{{baseUrl}}'],
+    raw: `{{${baseVariable}}}${url.pathname}${url.search}`,
+    host: [`{{${baseVariable}}}`],
     path: url.pathname.split('/').filter((segment) => segment.length > 0),
     query: parseQuery(url.search),
   };
 }
 
 /** Convert an example request, also reused by its saved response. */
-function toRequest(ex: Example): PostmanRequest {
+function toRequest(ex: Example, baseVariable: string): PostmanRequest {
   const mime = requestMime(ex.request);
   const request: PostmanRequest = {
     method: ex.request.method,
     // Transport headers must describe the outgoing body, not the captured bytes.
     header: toHeaders(ex.request.headers).filter((h) => !h.key.startsWith(':') && !['content-length', 'host', 'transfer-encoding'].includes(h.key.toLowerCase())),
-    url: toPostmanUrl(ex.request.url),
+    url: toPostmanUrl(ex.request.url, baseVariable),
   };
   if (ex.request.bodyMeta?.representation === 'params' && mediaType(mime) === 'multipart/form-data') {
     const params = ex.request.body as BodyParam[];
@@ -230,15 +232,19 @@ function toRequestItem(
   ex: LoadedExample,
   definition: Definition,
   variant: Variant,
+  baseVariable: string,
+  label: string,
+  sourcePath: string,
 ): PostmanRequestItem {
-  const request = toRequest(ex.data);
+  const request = toRequest(ex.data, baseVariable);
+  request.description = `${variant.status}\n\nCaptured origin: ${new URL(ex.data.request.url).origin}\n\nCanonical recording: ${sourcePath}\n\nSelect the local replay environment for recorded behavior. Masked placeholders stay unchanged during replay; for live use, supply your own values in a separate environment. Requiredness and authentication requirements are not inferred from this capture.`;
   const recording = encodeURIComponent(`${definition.api}:${ex.name}`);
   const savedHeaders = responseHeaders(ex.data.response);
   const savedMime = headerValue(savedHeaders, 'content-type');
   const preview = isJsonMime(savedMime) || ex.data.response.bodyMeta?.representation === 'json' ? 'json' :
     mediaType(savedMime).includes('xml') ? 'xml' : mediaType(savedMime) === 'text/html' ? 'html' : 'text';
   return {
-    name: `${ex.data.request.method} ${definition.endpoint.path} · ${variant.variant} · ${ex.name}`,
+    name: `${variant.variant} · ${label}`,
     request,
     response: [
       {
@@ -258,7 +264,10 @@ function toRequestItem(
         listen: 'prerequest',
         script: { type: 'text/javascript', exec: [
           'if (pm.environment.get("apicReplay") === "true") {',
+          `  pm.variables.set(${JSON.stringify(baseVariable)}, pm.environment.get("baseUrl"));`,
           `  pm.request.headers.upsert({ key: "x-apic-replay-example", value: ${JSON.stringify(recording)} });`,
+          '} else {',
+          '  pm.request.headers.remove("x-apic-replay-example");',
           '}',
         ] },
       },
@@ -276,6 +285,19 @@ function toRequestItem(
 /** Render canonical examples into Postman Collection v2.1 and environment files. */
 export function renderPostman(corpus: LoadedCorpus): GeneratedFile[] {
   const collection: Collection = corpus.collection;
+  const recordedOrigins = [...new Set(corpus.apis.flatMap((api) => api.examples.map((ex) => new URL(ex.data.request.url).origin)))].sort(compareCodepoint);
+  const usedNames = new Set(['baseUrl', 'apicReplay', ...corpus.apis.flatMap((api) => api.examples.flatMap((ex) => placeholders(ex.data.request)))]);
+  const baseVariables = new Map<string, string>();
+  for (const origin of recordedOrigins) {
+    const label = Object.keys(collection.bases).sort(compareCodepoint).find((key) => {
+      try { return new URL(collection.bases[key]).origin === origin; } catch { return false; }
+    });
+    const stem = `baseUrl_${encodeURIComponent(label ?? new URL(origin).host)}`;
+    let key = stem;
+    for (let suffix = 2; usedNames.has(key); suffix += 1) key = `${stem}_${suffix}`;
+    usedNames.add(key);
+    baseVariables.set(origin, key);
+  }
 
   const folders: PostmanFolder[] = [...corpus.apis]
     .sort((a, b) => compareCodepoint(a.definition.api, b.definition.api))
@@ -288,7 +310,8 @@ export function renderPostman(corpus: LoadedCorpus): GeneratedFile[] {
       }
       const items = api.examples
         .filter((ex) => variantByExample.has(ex.name))
-        .map((ex) => toRequestItem(ex, api.definition, variantByExample.get(ex.name) as Variant))
+        .map((ex, index) => toRequestItem(ex, api.definition, variantByExample.get(ex.name) as Variant,
+          baseVariables.get(new URL(ex.data.request.url).origin)!, recordingLabel(ex, index), examplePath(api, ex)))
         .sort((a, b) => compareCodepoint(a.name, b.name));
       return { name: `${api.definition.name} (${api.definition.api})`, item: items };
     });
@@ -298,15 +321,10 @@ export function renderPostman(corpus: LoadedCorpus): GeneratedFile[] {
       _postman_id: deterministicGuid(collection.name),
       name: collection.name,
       schema: POSTMAN_SCHEMA,
+      description: 'Recorded requests with per-origin base URLs. For local replay, run npm run apic -- serve from workflow/cli and select the imported local replay environment. For live use, use a separate environment with apicReplay disabled and supply your own masked values. See ../docs/usage.md for setup and placeholder guidance.',
     },
     item: folders,
-    variable: [
-      {
-        key: 'baseUrl',
-        value: collection.bases[Object.keys(collection.bases).sort(compareCodepoint)[0]] ?? LOCAL_REPLAY_BASE_URL,
-        type: 'string',
-      },
-    ],
+    variable: [...baseVariables].map(([origin, key]) => ({ key, value: origin, type: 'string' })),
   };
 
   const environment = {
@@ -319,6 +337,10 @@ export function renderPostman(corpus: LoadedCorpus): GeneratedFile[] {
         enabled: true,
         type: 'default',
       },
+      { key: 'apicReplay', value: 'true', enabled: true, type: 'default' },
+      ...[...new Set(corpus.apis.flatMap((api) => api.examples.flatMap((ex) => placeholders(ex.data.request))))]
+        .filter((key) => !['baseUrl', 'apicReplay'].includes(key)).sort(compareCodepoint)
+        .map((key) => ({ key, value: '', enabled: false, disabled: true, type: 'secret' })),
     ],
     _postman_variable_scope: 'environment',
   };

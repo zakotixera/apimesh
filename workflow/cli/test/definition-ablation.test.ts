@@ -25,7 +25,9 @@ describe('definition ablations: absence, validity and consumer capability', () =
     const before = structuredClone(def);
     expect(schemas.definition(def)).toEqual([]);
     const doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
-    const agent = JSON.parse(renderAgent(data)[0].content).apis[0];
+    const agentFiles = renderAgent(data);
+    const entry = JSON.parse(agentFiles[0].content).apis[0];
+    const agent = JSON.parse(agentFiles.find((file) => `dist/${file.path}` === entry.detailFile)!.content);
     expect(doc).toContain(`**auth**: \`${removed === 'auth' ? 'unknown' : 'required'}\``);
     expect(agent.auth).toBe(removed === 'auth' ? undefined : 'required');
     expect(agent.request).toEqual(def.request);

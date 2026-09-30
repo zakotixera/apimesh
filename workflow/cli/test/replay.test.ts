@@ -78,6 +78,7 @@ describe('strict replay matching', () => {
     redirect.response = { status: 302, headers: { location: '/must-not-follow' }, body: null };
     const examples = [
       example(), example(),
+      example({ url: 'https://second.example.invalid/x?a=3', body: { token: '{{token}}' } }),
       example({ headers: {}, ...capturePostData({ mimeType: 'application/x-www-form-urlencoded', text: 'q=a+b&q=c' }) }),
       example({ headers: {}, ...capturePostData({ mimeType: 'text/plain', text: 'hello\nworld' }) }),
       example({ headers: {}, ...capturePostData({ mimeType: 'multipart/form-data', params: [{ name: 'q', value: '1' }, { name: 'q', value: '2' }] }) }),
@@ -87,11 +88,14 @@ describe('strict replay matching', () => {
     const data = corpus(examples);
     const server = await startReplayServer(data);
     servers.push(server);
-    const collection = JSON.parse(renderPostman(data)[0].content);
+    const files = renderPostman(data);
+    const collection = JSON.parse(files[0].content);
+    const environment = JSON.parse(files[1].content);
+    environment.values.find((entry: any) => entry.key === 'baseUrl').value = server.url;
     const { default: newman } = await import('newman');
     const summary = await new Promise<any>((resolve, reject) => {
       newman.run({ collection, reporters: [], timeoutRequest: 3000, ignoreRedirects: true,
-        environment: { values: [{ key: 'baseUrl', value: server.url, enabled: true }, { key: 'apicReplay', value: 'true', enabled: true }] },
+        environment,
       }, (error, result) => error ? reject(error) : resolve(result));
     });
     expect(summary.run.failures.map((f: any) => f.error.message)).toEqual([]);

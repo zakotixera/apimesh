@@ -36,8 +36,10 @@ function captureFidelity(expected, collection) {
       const responseText = frame.response.bodyMeta?.representation === 'json'
         ? JSON.stringify(frame.response.body, null, 2)
         : frame.response.body === null ? '' : String(frame.response.body);
+      const variables = new Map((collection.variable ?? []).map((entry) => [entry.key, entry.value]));
+      const exportedUrl = item.request.url.raw.replace(/^\{\{([^{}]+)\}\}/, (match, key) => variables.get(key) ?? match);
       if (item.request.method !== frame.request.method ||
-          item.request.url.raw !== `{{baseUrl}}${url.pathname}${url.search}` ||
+          exportedUrl !== `${url.origin}${url.pathname}${url.search}` ||
           !requestPayloadMatches(frame.request, item.request.body) ||
           saved.code !== frame.response.status || saved.body !== responseText) mismatches += 1;
     }

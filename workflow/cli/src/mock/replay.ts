@@ -27,7 +27,7 @@ function serializeBody(body: unknown, metadata?: BodyMetadata): { text: string |
 }
 
 /** Replay only uniquely matched recordings, validating request content before selection. */
-export function startReplayServer(corpus: LoadedCorpus): Promise<ReplayServer> {
+export function startReplayServer(corpus: LoadedCorpus, options: { port?: number } = {}): Promise<ReplayServer> {
   // Index recording candidates by HTTP method and pathname.
   const routes = new Map<string, Recording[]>();
   const authHeaders = Object.values(corpus.collection.auth ?? {}).filter((auth) => auth.kind === 'header').map((auth) => auth.name);
@@ -76,7 +76,8 @@ export function startReplayServer(corpus: LoadedCorpus): Promise<ReplayServer> {
     if (matches.length !== 1) {
       failures += 1;
       res.writeHead(matches.length > 1 ? 409 : 404, { 'content-type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ error: matches.length > 1 ? 'ambiguous recording' : 'no matching recording', method, path: parsed.pathname }));
+      res.end(JSON.stringify({ error: matches.length > 1 ? 'ambiguous recording' : 'no matching recording', method, path: parsed.pathname,
+        hint: matches.length > 1 ? 'Select the generated local replay environment so the request script supplies x-apic-replay-example.' : 'Use a generated recorded request with its original query, body, content type and masked placeholders.' }));
       return;
     }
     const match = matches[0];
@@ -101,7 +102,7 @@ export function startReplayServer(corpus: LoadedCorpus): Promise<ReplayServer> {
 
   return new Promise((resolve, reject) => {
     server.on('error', reject);
-    server.listen(0, '127.0.0.1', () => {
+    server.listen(options.port ?? 0, '127.0.0.1', () => {
       const address = server.address();
       if (address === null || typeof address === 'string') {
         reject(new Error('Cannot determine the replay server port'));

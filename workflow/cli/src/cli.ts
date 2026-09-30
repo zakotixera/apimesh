@@ -5,6 +5,7 @@ import { validateCommand } from './validate';
 import { renderCommand } from './render';
 import { driftCommand } from './drift';
 import { testCommand } from './test';
+import { serveCommand } from './serve';
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -18,6 +19,7 @@ async function main(): Promise<void> {
   program.addCommand(renderCommand());
   program.addCommand(driftCommand());
   program.addCommand(testCommand());
+  program.addCommand(serveCommand());
 
   await program.parseAsync(process.argv);
 }
