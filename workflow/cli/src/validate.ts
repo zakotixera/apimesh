@@ -3,6 +3,8 @@ import { Command } from 'commander';
 import { loadCollection, loadGlossary } from './lib/canonical';
 import { readJson, walk, writeJsonStable } from './lib/fsx';
 import { codeFromBody } from './lib/har';
+import { bodyForAnalysis } from './lib/body';
+import { compareBody } from './lib/body-drift';
 import { scanPlaceholders } from './lib/mask';
 import { rel, resolvePaths, type ProjectPaths } from './lib/paths';
 import { loadSchemas, type SchemaValidators } from './lib/schemas';
@@ -55,11 +57,18 @@ function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function loadTolerant(paths: ProjectPaths, issues: Issue[]): Loaded {
+function loadTolerant(paths: ProjectPaths, schemas: SchemaValidators, issues: Issue[]): Loaded {
   const loaded: Loaded = { apis: [] };
+  // Only structurally valid values may enter the cross-reference checks.
+  // Validate even null/false/zero documents; truthiness is not a validity check.
+  function checked<T>(value: T, validate: (value: unknown) => string[], code: string, file: string): T | undefined {
+    const errors = validate(value);
+    for (const message of errors) issues.push({ severity: 'error', code, message, file });
+    return errors.length === 0 ? value : undefined;
+  }
 
   try {
-    loaded.collection = loadCollection(paths);
+    loaded.collection = checked(loadCollection(paths), schemas.collection, 'schema-collection', 'collection.json');
   } catch (err) {
     issues.push({
       severity: 'error',
@@ -69,7 +78,7 @@ function loadTolerant(paths: ProjectPaths, issues: Issue[]): Loaded {
     });
   }
   try {
-    loaded.glossary = loadGlossary(paths);
+    loaded.glossary = checked(loadGlossary(paths), schemas.glossary, 'schema-glossary', 'glossary.json');
   } catch (err) {
     issues.push({
       severity: 'error',
@@ -90,7 +99,7 @@ function loadTolerant(paths: ProjectPaths, issues: Issue[]): Loaded {
       examples: [],
     };
     try {
-      api.def = readJson<Definition>(file);
+      api.def = checked(readJson<Definition>(file), schemas.definition, 'schema-definition', api.relFile);
     } catch (err) {
       issues.push({
         severity: 'error',
@@ -107,7 +116,7 @@ function loadTolerant(paths: ProjectPaths, issues: Issue[]): Loaded {
         relFile: rel(paths.root, ef),
       };
       try {
-        entry.data = readJson<Example>(ef);
+        entry.data = checked(readJson<Example>(ef), schemas.example, 'schema-example', entry.relFile);
       } catch (err) {
         issues.push({
           severity: 'error',
@@ -138,20 +147,8 @@ function intersect(a: number[], b: number[]): number[] {
 
 function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
   const issues: Issue[] = [];
-  const loaded = loadTolerant(paths, issues);
+  const loaded = loadTolerant(paths, schemas, issues);
   const { collection, glossary, apis } = loaded;
-
-  // Validate collection and glossary schemas.
-  if (collection) {
-    for (const m of schemas.collection(collection)) {
-      issues.push({ severity: 'error', code: 'schema-collection', message: m, file: 'collection.json' });
-    }
-  }
-  if (glossary) {
-    for (const m of schemas.glossary(glossary)) {
-      issues.push({ severity: 'error', code: 'schema-glossary', message: m, file: 'glossary.json' });
-    }
-  }
 
   // Check glossary slug uniqueness and format.
   const glossarySlugs = new Set<string>();
@@ -187,10 +184,6 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
   for (const api of apis) {
     const def = api.def;
     if (!def) continue;
-
-    for (const m of schemas.definition(def)) {
-      issues.push({ severity: 'error', code: 'schema-definition', message: m, file: api.relFile });
-    }
 
     // Check API identifier uniqueness and format.
     if (typeof def.api === 'string') {
@@ -254,9 +247,14 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
     const variants: Variant[] = Array.isArray(def.responses) ? def.responses : [];
     const fileByName = new Map(api.examples.map((e) => [e.name, e]));
     const referenced = new Map<string, number>();
+    const variantSlugs = new Set<string>();
 
     variants.forEach((variant, vi) => {
       const at = `responses[${vi}]`;
+      if (variantSlugs.has(variant.variant)) {
+        issues.push({ severity: 'error', code: 'variant-slug-duplicate', message: `Duplicate variant slug: ${variant.variant}`, file: api.relFile, path: `${at}.variant` });
+      }
+      variantSlugs.add(variant.variant);
 
       if (typeof variant.variant === 'string') {
         if (!SLUG_RE.test(variant.variant)) {
@@ -351,6 +349,17 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
           issues.push({ severity: 'error', code: 'code-redundant', message: `example.code(${ef.data.code})≠ response.body.code ?? errno(${codeFromBody(ef.data.response.body)})`, file: ef.relFile });
         }
 
+        // Missing and binary captures have no analyzable JSON/text shape.
+        // A BodyNode describes observed types, not required fields or a closed object.
+        const response = ef.data.response;
+        if (response.bodyMeta?.source !== 'missing' && response.bodyMeta?.representation !== 'base64') {
+          for (const change of compareBody(bodyForAnalysis(response), variant.schema)) {
+            if (change.kind !== 'breaking') continue;
+            issues.push({ severity: 'error', code: 'example-body-type', message: change.detail,
+              file: ef.relFile, path: `response.body${change.path.slice(1)}` });
+          }
+        }
+
         // warning 4: origin
         if (typeof ef.data.origin === 'string' && !baseKeys.has(ef.data.origin)) {
           issues.push({ severity: 'warning', code: 'origin-unknown', message: `example.origin (${ef.data.origin}) is not registered in collection.bases`, file: ef.relFile });
@@ -413,16 +422,6 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
             file: api.relFile,
           });
         }
-      }
-    }
-  }
-
-  // Validate example file schemas.
-  for (const api of apis) {
-    for (const ef of api.examples) {
-      if (!ef.data) continue;
-      for (const m of schemas.example(ef.data)) {
-        issues.push({ severity: 'error', code: 'schema-example', message: m, file: ef.relFile });
       }
     }
   }

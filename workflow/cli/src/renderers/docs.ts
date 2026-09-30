@@ -2,6 +2,7 @@ import path from 'node:path';
 import type { GeneratedFile, Param } from '../lib/types';
 import type { LoadedCorpus } from '../lib/canonical';
 import { readText } from '../lib/fsx';
+import { stableStringify } from '../lib/stable-json';
 
 /** Relative documentation path using POSIX separators. */
 function apiDocPath(relDir: string): string {
@@ -54,7 +55,7 @@ function renderApiPage(corpus: LoadedCorpus, relDir: string): string {
   if (paramRows.length === 0) {
     lines.push('_No parameters documented._');
   } else {
-    lines.push('| in | name | type | required | default | desc |');
+    lines.push('| in | name | type | required | observed value | desc |');
     lines.push('|---|---|---|---|---|---|');
     lines.push(...paramRows);
   }
@@ -102,6 +103,21 @@ function renderApiPage(corpus: LoadedCorpus, relDir: string): string {
     );
   }
   lines.push('');
+
+  lines.push('## Observed response shapes');
+  lines.push('');
+  lines.push('Shapes describe recorded types; they do not establish field requiredness.');
+  lines.push('');
+  for (const variant of def.responses) {
+    lines.push(`### ${variant.variant}`);
+    lines.push('');
+    if (variant.schema === null) {
+      lines.push('_Shape unknown._');
+    } else {
+      lines.push('```json', stableStringify(variant.schema).trimEnd(), '```');
+    }
+    lines.push('');
+  }
 
   // Observed response header values.
   const withHeaders = def.responses.filter((v) => v.headers && Object.keys(v.headers).length > 0);

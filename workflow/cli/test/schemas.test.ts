@@ -76,4 +76,34 @@ describe('canonical JSON schemas', () => {
     definition.responses[0] = { ...definition.responses[0], bogus: 1 } as typeof definition.responses[0];
     expect(schemas.definition(definition).length).toBeGreaterThan(0);
   });
+
+  it.each([
+    { type: 'string', properties: {} },
+    { type: 'object', items: null },
+    { type: ['string', 'null'], items: { type: 'number' } },
+  ])('rejects inapplicable body shape keywords: %j', (shape) => {
+    const def = corpus([]).apis[0].definition;
+    expect(schemas.definition({ ...def, responses: [{ ...def.responses[0], schema: shape }] }).length).toBeGreaterThan(0);
+  });
+
+  it('supports recursive object/array unions without requiring an observed child shape', () => {
+    const def = corpus([]).apis[0].definition;
+    def.responses[0].schema = { type: ['object', 'array', 'null'], properties: { value: { type: 'string' } }, items: null };
+    expect(schemas.definition(def)).toEqual([]);
+    def.responses[0].schema = { type: 'object' };
+    expect(schemas.definition(def)).toEqual([]);
+  });
+
+  it('rejects duplicate example references and endpoint query strings', () => {
+    const def = corpus([]).apis[0].definition;
+    def.responses[0].examples = ['200.code0.ok.json', '200.code0.ok.json'];
+    expect(schemas.definition(def).length).toBeGreaterThan(0);
+    def.responses[0].examples = [];
+    def.endpoint.path = '/x?q=1';
+    expect(schemas.definition(def).length).toBeGreaterThan(0);
+  });
+
+  it.each([99, 600])('rejects invalid glossary HTTP hints: %s', (http) => {
+    expect(schemas.glossary({ domains: [{ slug: 'observed', meaning: 'Observed outcome', 'http-shapes': [http] }] }).length).toBeGreaterThan(0);
+  });
 });

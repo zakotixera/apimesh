@@ -14,8 +14,8 @@ describe('canonical request identity validation', () => {
     ['POST', 'https://example.invalid/x?item=1', []],
     ['GET', 'https://example.invalid/x', ['example-method-mismatch']],
     ['POST', 'https://example.invalid/wrong', ['example-url-mismatch']],
-    ['POST', 'ftp://example.invalid/x', ['example-url-mismatch']],
-    ['POST', 'invalid', ['example-url-invalid']],
+    ['POST', 'ftp://example.invalid/x', ['schema-example']],
+    ['POST', 'invalid', ['schema-example']],
   ])('checks %s %s against its definition', async (method, url, errors) => {
     const root = temporaryDirectory(); dirs.push(root);
     const project = paths.projectPaths(root);
@@ -38,4 +38,91 @@ describe('canonical request identity validation', () => {
     expect(report.ok).toBe(errors.length === 0);
     expect(process.exitCode).toBe(errors.length === 0 ? 0 : 1);
   });
+});
+
+describe('canonical structural and observation validation', () => {
+  async function validate(change: (files: Record<string, any>) => void) {
+    const root = temporaryDirectory(); dirs.push(root);
+    const project = paths.projectPaths(root);
+    fs.cpSync(path.resolve(import.meta.dirname, '../../../schema'), project.schema, { recursive: true });
+    const data = corpus([]);
+    const def = data.apis[0].definition;
+    def.responses[0].schema = { type: 'object', properties: {
+      code: { type: 'number' }, data: { type: ['string', 'null'] },
+    } };
+    def.responses[0].examples = ['200.code0.ok.json'];
+    const files: Record<string, any> = {
+      'collection.json': data.collection,
+      'glossary.json': { domains: [{ slug: 'ok', meaning: 'Success' }] },
+      'apis/x/definition.json': def,
+      'apis/x/examples/200.code0.ok.json': example(),
+    };
+    change(files);
+    for (const [name, value] of Object.entries(files)) {
+      const file = path.join(root, name);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify(value));
+    }
+    vi.spyOn(paths, 'resolvePaths').mockReturnValue(project);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await validateCommand().parseAsync(['--strict'], { from: 'user' });
+    return JSON.parse(fs.readFileSync(path.join(project.reports, 'validate.json'), 'utf8'));
+  }
+
+  it.each([null, false, 0, '', [], { responses: [null] }, { request: { query: { q: null } } }])(
+    'reports malformed definitions without throwing: %j', async (value) => {
+      const report = await validate((files) => {
+        files['apis/x/definition.json'] = value && !Array.isArray(value) && typeof value === 'object'
+          ? { ...files['apis/x/definition.json'], ...value } : value;
+      });
+      expect(report.ok).toBe(false);
+      expect(report.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'schema-definition' })]));
+    },
+  );
+
+  it('reports invalid documents independently even when their owning definition is invalid', async () => {
+    const report = await validate((files) => {
+      for (const name of Object.keys(files)) files[name] = null;
+    });
+    expect(report.issues.map((issue: { code: string }) => issue.code).sort()).toEqual([
+      'schema-collection', 'schema-definition', 'schema-example', 'schema-glossary',
+    ]);
+  });
+
+  it('rejects duplicate semantic slugs even with disjoint observations', async () => {
+    const report = await validate((files) => {
+      files['apis/x/definition.json'].responses.push({ variant: 'ok', status: 'Another observation',
+        codes: [], http: [204], schema: null, examples: [] });
+    });
+    expect(report.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'variant-slug-duplicate' })]));
+  });
+
+  it.each([false, true])('rejects a contradictory response type (JSON text: %s)', async (text) => {
+    const report = await validate((files) => {
+      const response = files['apis/x/examples/200.code0.ok.json'].response;
+      response.body.data = 123;
+      if (text) {
+        response.body = JSON.stringify(response.body);
+        response.bodyMeta = { representation: 'text', source: 'text', mimeType: 'application/json' };
+      }
+    });
+    expect(report.issues).toEqual([expect.objectContaining({ code: 'example-body-type', path: 'response.body["data"]' })]);
+  });
+
+  it('checks nested array elements', async () => {
+    const report = await validate((files) => {
+      files['apis/x/definition.json'].responses[0].schema.properties.data = {
+        type: 'array', items: { type: 'object', properties: { id: { type: 'number' } } },
+      };
+      files['apis/x/examples/200.code0.ok.json'].response.body.data = [{ id: 1 }, { id: 'wrong' }];
+    });
+    expect(report.issues).toEqual([expect.objectContaining({ code: 'example-body-type', path: 'response.body["data"][]["id"]' })]);
+  });
+
+  it.each([{ code: 0 }, { code: 0, data: null }, { code: 0, data: 'value', extra: 1 }])(
+    'allows absent fields, declared unions, and additional observed fields: %j', async (body) => {
+      const report = await validate((files) => { files['apis/x/examples/200.code0.ok.json'].response.body = body; });
+      expect(report.ok).toBe(true);
+    },
+  );
 });

@@ -41,6 +41,8 @@ From `workflow/cli`, use the built local CLI through `npm run apic -- <command>`
 
 Resolve validation errors before reporting the affected operation complete. Report warnings; they block validation only in strict mode. Track import coverage separately from data validity. Local replay verifies recordings and generated assertions; live service behavior is outside its scope.
 
+Each definition has unique variant slugs. Declared response types must accommodate every referenced, analyzable recording; merge observed type differences into unions without asserting field requiredness. BodyNode `properties` requires an object type and `items` requires an array type. Additional and absent fields remain allowed. Validation reports malformed documents before attempting cross-file checks on their contents.
+
 ## Handoff
 
 Report task scope, files changed, supporting evidence, verification performed, warnings, and unresolved observations with their locations and next action. Mark partial completion explicitly. Use the response, PR description, or another user-requested destination for the handoff; `dist/` and `.reports/` remain reserved for CLI output.

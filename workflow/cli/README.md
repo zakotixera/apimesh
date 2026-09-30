@@ -52,6 +52,8 @@ Run `npm run test:ablation` for controlled removals using synthetic data, or app
 
 Example filenames accept `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`. Existing names remain valid; use stable lowercase alphanumeric/hyphen suffixes for distinct recordings sharing an outcome. Validation checks request method and URL pathname against the owning definition. Drift uses observed HTTP/code pairs and reports ambiguous variant matches instead of choosing the first.
 
+Validation reports malformed documents without running semantic checks on them. Variant slugs must be unique per definition, and referenced response bodies must agree with declared `BodyNode` types. Missing fields and additional fields are allowed because these observed shapes do not declare requiredness or closed objects. Documentation labels parameter values as observed and includes response shapes; agent output retains request definitions and unknown declarations.
+
 Newman's pinned dependencies require three compatibility overrides: `postman-request` uses the version already required by Newman to remove `har-validator`; `serialised-error` uses UUID 8's supported `v4` API; and `postman-collection` uses Faker 6, which retains its CommonJS locale API. Dependency compatibility tests cover dynamic variables and decorated errors; replay tests cover HTTP requests. Recheck these overrides when upgrading Newman. Some upstream calls still emit API deprecation warnings.
 
 After canonical changes, run `validate`, `render --all`, then `test`. See [CI](../../.github/workflows/ci.yml) for the full gate and the [pipeline instructions](../skills/pipeline/SKILL.md) for orchestration.

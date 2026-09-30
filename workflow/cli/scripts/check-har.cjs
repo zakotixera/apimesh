@@ -10,6 +10,7 @@ const { stableStringify } = require('../dist/lib/stable-json');
 const { bodyForAnalysis } = require('../dist/lib/body');
 const { walk } = require('../dist/lib/fsx');
 const { captureFidelity } = require('./lib/capture-fidelity.cjs');
+const { validationProbes } = require('./lib/validation-probes.cjs');
 
 const repo = path.resolve(__dirname, '../../..');
 const cli = path.resolve(__dirname, '../dist/cli.js');
@@ -101,6 +102,10 @@ function checkHar(inputs) {
       }
     }
     run('validate', '--strict');
+    const definitionFile = walk(path.join(root, 'apis'), (file) => path.basename(file) === 'definition.json')[0];
+    const exampleFile = walk(path.join(path.dirname(definitionFile), 'examples'))[0];
+    const rejected = validationProbes(root, cli, definitionFile, exampleFile);
+    run('validate', '--strict');
     run('render', '--all');
     const rendered = snapshot(path.join(root, 'dist'));
     run('render', '--all');
@@ -118,6 +123,7 @@ function checkHar(inputs) {
     if (drift.changes.length) throw new Error('Baseline HAR unexpectedly produces drift');
     if (files.some((file, index) => hash(fs.readFileSync(file)) !== sourceHashes[index])) throw new Error('Source HAR changed');
     return { sourceEntries: entries.length, recordings, duplicates: entries.length - recordings, endpoints, additionalRecordings,
+      validationProbes: rejected.length,
       validation: 'passed', extractionStability: 'passed', renderStability: 'passed', replay: 'passed', captureFidelity: 'passed', baselineDrift: 'none' };
   } catch (error) {
     error.completedStages = completedStages;

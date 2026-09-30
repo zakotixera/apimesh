@@ -28,6 +28,7 @@ describe('definition ablations: absence, validity and consumer capability', () =
     const agent = JSON.parse(renderAgent(data)[0].content).apis[0];
     expect(doc).toContain(`**auth**: \`${removed === 'auth' ? 'unknown' : 'required'}\``);
     expect(agent.auth).toBe(removed === 'auth' ? undefined : 'required');
+    expect(agent.request).toEqual(def.request);
     expect(doc).toContain(`| query | \`id\` | ${removed === 'type' ? 'unknown' : 'integer'} | ${removed === 'required' ? 'unknown' : 'yes'} |`);
     expect(def).toEqual(before);
   });
@@ -41,6 +42,19 @@ describe('definition ablations: absence, validity and consumer capability', () =
     expect(doc).toContain('**auth**: `none`');
     expect(doc).toContain('| query | `id` | string | no |');
     expect(JSON.parse(renderAgent(data)[0].content).apis[0].auth).toBe('none');
+  });
+
+  it('labels observed values and distinguishes unknown shapes from observed JSON null', () => {
+    const data = corpus([]);
+    const def = data.apis[0].definition;
+    def.request = { query: { q: { default: 'recorded', desc: 'Observed query' } } };
+    let doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
+    expect(doc).toContain('| observed value |');
+    expect(doc).toContain('_Shape unknown._');
+    def.responses[0].schema = { type: 'null' };
+    doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
+    expect(doc).toContain('"type": "null"');
+    expect(doc).not.toContain('_Shape unknown._');
   });
 
   it('detects changed JSON request bytes after metadata deletion even though both examples are schema-valid', () => {

@@ -5,7 +5,7 @@ Schemas describe application-neutral data shapes and representation invariants. 
 | Layer | Defines | Does not establish |
 |---|---|---|
 | JSON Schema | Accepted fields, types, identifiers, and body/metadata combinations | Cross-file agreement, replay capability, or semantic truth |
-| Canonical validation | References, registered vocabulary, endpoint identity, redundant observation consistency | Whether every source observation was imported |
+| Canonical validation | References, unique variant slugs, registered vocabulary, endpoint identity, redundant observations, and declared body types | Whether every source observation was imported |
 | Capture fidelity | Exported method, URL, payload representation, and saved response agree with sanitized extraction evidence | Original unmasked wire bytes or a complete HTTP-header comparison |
 | Replay | Generated requests match local canonical recordings and execute assertions | Fidelity to extraction evidence when both exporter and server share the same mistake |
 | Semantic classification | Evidence-backed meaning and variant membership | Meaning inferred solely from HTTP status, business code, or a passing test |
@@ -16,7 +16,11 @@ Schemas describe application-neutral data shapes and representation invariants. 
 
 Omitted `auth`, parameter `type`, and parameter `required` mean unknown. Explicit `auth: none` and `required: false` are assertions that need evidence. A parameter's `default` stores an observed value, not a guaranteed server default. Renderers must preserve these distinctions. Agent output omits unknown auth; human-readable output labels it unknown.
 
-`BodyNode` describes observed types, object properties, and array item shapes. `schema: null` means no trustworthy shape is known; it does not mean the response body is JSON null. `{ "type": "null" }` describes a known null value. This type tree does not establish field requiredness.
+`BodyNode` describes observed types, object properties, and array item shapes. `schema: null` means no trustworthy shape is known; it does not mean the response body is JSON null. `{ "type": "null" }` describes a known null value. This type tree does not establish field requiredness. `properties` applies only when the node includes type `object`; `items` applies only when it includes type `array`. Omitted child shapes are unknown, and `items: null` records an unknown item shape.
+
+Validation checks declared types recursively against each referenced example, parsing captured JSON text for analysis without changing storage. Additional object fields and absent fields are allowed; neither a closed-object contract nor requiredness is inferred. Missing and binary captures are not checked as JSON/text shapes. Structurally invalid documents are reported before semantic checks; other files are still checked and a validation report is written.
+
+Human-readable templates label parameter `default` as **observed value**, show unknown declarations explicitly, and include response type trees. The agent index preserves request definitions and response shapes without filling in unknown declarations. Starter files contain only collection metadata and empty vocabulary; endpoint definitions must come from evidence.
 
 | Body representation | Stored body | Meaning |
 |---|---|---|

@@ -56,7 +56,7 @@ describe('template and complete workflow', () => {
     expect(result.stderr).toBe('');
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ sourceEntries: 4, recordings: 4, endpoints: 1, additionalRecordings: 2,
-      validation: 'passed', extractionStability: 'passed', renderStability: 'passed', replay: 'passed', captureFidelity: 'passed', baselineDrift: 'none' });
+      validation: 'passed', validationProbes: 7, extractionStability: 'passed', renderStability: 'passed', replay: 'passed', captureFidelity: 'passed', baselineDrift: 'none' });
     expect(fs.readFileSync(file)).toEqual(before);
   }, 60000);
 });

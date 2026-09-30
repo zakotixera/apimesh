@@ -30,6 +30,7 @@ export function renderAgent(corpus: LoadedCorpus): GeneratedFile[] {
         source: def.source,
         tags: def.tags ?? [],
         ...(def.auth === undefined ? {} : { auth: def.auth }),
+        ...(def.request === undefined ? {} : { request: def.request }),
         variants: def.responses.map((variant) => ({
           variant: variant.variant,
           status: variant.status,

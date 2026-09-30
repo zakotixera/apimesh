@@ -36,6 +36,8 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 
 同一语义可以对应不同的状态码组合。例如，已确认的「条目不存在」分别表现为 HTTP 200 + `code: 1004` 和 HTTP 404 + 无业务码时，可归入同一个 `not-found`，使用 `codes: [1004]`、`http: [200, 404]`，分别引用 `200.code1004.not-found.json` 与 `404.http-only.not-found.json`。
 
+同一 definition 中 variant slug 必须唯一；已有语义追加观测，不创建重名变体。声明的 BodyNode 类型必须兼容所有引用的可分析响应；类型差异用并集合并。`properties` 仅用于包含 object 的节点，`items` 仅用于包含 array 的节点。字段缺失不表示必填性，新字段也不违反封闭对象约束，因为当前类型树未声明这两类约束。
+
 ## 歧义与模型限制
 
 - **未分类观测：** 证据不足时保留原抽取结果，列出 method/path、文件、捕获时间、HTTP/code、已知证据、缺失信息及下一步。`unclassified` 是处理状态，不是预设 glossary slug；schema 未定义独立的 `flag` 字段。已确认部分可以导入，结果标记为「部分完成」。
