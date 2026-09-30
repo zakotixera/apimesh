@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "collection.json",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": {}
+  },
+  "required": [
+    "name",
+    "version",
+    "bases",
+    "changelog"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "bases": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "patternProperties": {
+          "^x-": {}
+        },
+        "required": [
+          "kind",
+          "name",
+          "doc"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "cookie",
+              "header"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "doc": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "changelog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "patternProperties": {
+          "^x-": {}
+        },
+        "required": [
+          "version",
+          "date",
+          "notes"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

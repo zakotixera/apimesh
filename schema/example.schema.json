@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "example.json",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": {}
+  },
+  "required": [
+    "http",
+    "code",
+    "captured",
+    "account",
+    "request",
+    "response"
+  ],
+  "properties": {
+    "http": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599
+    },
+    "code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "captured": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "origin": {
+      "type": "string"
+    },
+    "account": {
+      "type": "string"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {}
+      },
+      "required": [
+        "method",
+        "url",
+        "body"
+      ],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "HEAD",
+            "OPTIONS"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "type": [
+            "object",
+            "array",
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {}
+      },
+      "required": [
+        "status",
+        "body"
+      ],
+      "properties": {
+        "status": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "type": [
+            "object",
+            "array",
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

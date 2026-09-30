@@ -1,0 +1,35 @@
+{
+  "name": "apic",
+  "version": "0.1.0",
+  "private": true,
+  "description": "bilibili-collection deterministic executor (HAR → canonical → dist)",
+  "bin": {
+    "apic": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "apic": "node ./dist/cli.js",
+    "link": "npm link",
+    "test": "vitest run --passWithNoTests",
+    "test:local": "vitest run --config vitest.local.config.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "commander": "^12.1.0",
+    "newman": "^6.2.1",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  }
+}

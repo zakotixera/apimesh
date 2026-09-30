@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "definition.json",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": {}
+  },
+  "required": [
+    "api",
+    "name",
+    "endpoint",
+    "source",
+    "responses"
+  ],
+  "properties": {
+    "api": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+(?:\\.[a-z0-9-]+)+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {}
+      },
+      "required": [
+        "method",
+        "path"
+      ],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "HEAD",
+            "OPTIONS"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        }
+      }
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      },
+      "uniqueItems": true
+    },
+    "auth": {
+      "type": "string",
+      "enum": [
+        "none",
+        "optional",
+        "required"
+      ],
+      "default": "none"
+    },
+    "request": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {}
+      },
+      "properties": {
+        "query": {
+          "$ref": "#/$defs/paramSection"
+        },
+        "body": {
+          "$ref": "#/$defs/paramSection"
+        },
+        "headers": {
+          "$ref": "#/$defs/valueSection"
+        },
+        "cookies": {
+          "$ref": "#/$defs/valueSection"
+        }
+      }
+    },
+    "responses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/variant"
+      }
+    }
+  },
+  "$defs": {
+    "paramSection": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/param"
+      }
+    },
+    "valueSection": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "param": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {}
+      },
+      "required": [
+        "desc"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "array",
+            "object"
+          ],
+          "default": "string"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "default": {},
+        "desc": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "bodyNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {}
+      },
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "object",
+                "array",
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "object",
+                  "array",
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          ]
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/bodyNode"
+          }
+        },
+        "items": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/bodyNode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {}
+      },
+      "required": [
+        "variant",
+        "status",
+        "codes",
+        "http",
+        "schema"
+      ],
+      "properties": {
+        "variant": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codes": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "uniqueItems": true
+        },
+        "http": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "uniqueItems": true
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/bodyNode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "examples": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "pattern": "^[1-5][0-9]{2}\\.(?:code-?[0-9]+|http-only)\\.[a-z0-9]+(?:-[a-z0-9]+)*\\.json$"
+          }
+        }
+      }
+    }
+  }
+}
