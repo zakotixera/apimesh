@@ -138,7 +138,7 @@ function buildFrame(
   };
 }
 
-/** `/x/web-interface/view` → `GET.x.web-interface.view.yaml`; `/` → `GET.yaml`。 */
+/** `/catalog/items` -> `GET.catalog.items.yaml`; `/` -> `GET.yaml`. */
 function endpointFileName(endpoint: ExtractEndpoint): string {
   const segments = endpoint.path.split('/').filter((s) => s.length > 0);
   const stem =

@@ -14,10 +14,10 @@ import type { Collection } from '../src/lib/types';
 const collection: Collection = {
   name: 'test',
   version: '0.0.0',
-  bases: { web: 'https://api.bilibili.com' },
+  bases: { web: 'https://api.example.invalid' },
   auth: {
-    SESSDATA: { kind: 'cookie', name: 'SESSDATA', doc: '' },
-    bili_jct: { kind: 'cookie', name: 'bili_jct', doc: '' },
+    SESSION_ID: { kind: 'cookie', name: 'SESSION_ID', doc: '' },
+    csrf_token: { kind: 'cookie', name: 'csrf_token', doc: '' },
   },
   changelog: [],
 };
@@ -33,16 +33,16 @@ describe('security-masker helpers', () => {
   });
 
   it('recognizes layer-1 placeholders as whole strings only', () => {
-    expect(isPlaceholder('{{SESSDATA}}')).toBe(true);
-    expect(isPlaceholder('{{bili_jct}}')).toBe(true);
-    expect(isPlaceholder('prefix {{SESSDATA}}')).toBe(false);
+    expect(isPlaceholder('{{SESSION_ID}}')).toBe(true);
+    expect(isPlaceholder('{{csrf_token}}')).toBe(true);
+    expect(isPlaceholder('prefix {{SESSION_ID}}')).toBe(false);
     expect(isPlaceholder('<redacted:token>')).toBe(false);
   });
 
   it('classifies names in severity order secret > token > pii', () => {
     expect(classifySensitiveName('password', sec)).toBe('secret');
-    expect(classifySensitiveName('bili_ticket', sec)).toBe('token');
-    expect(classifySensitiveName('mid', sec)).toBe('pii');
+    expect(classifySensitiveName('access_token', sec)).toBe('token');
+    expect(classifySensitiveName('user_id', sec)).toBe('pii');
     expect(classifySensitiveName('project_id', sec)).toBeNull();
   });
 });
@@ -50,8 +50,8 @@ describe('security-masker helpers', () => {
 describe('maskHeadersSecure', () => {
   it('keeps registered cookie placeholders and redacts sensitive cookie pairs', () => {
     expect(
-      maskHeadersSecure({ cookie: 'SESSDATA=abc; bili_ticket=eyJ.x.y; foo=1' }, cfg, sec),
-    ).toEqual({ cookie: 'SESSDATA={{SESSDATA}}; bili_ticket=<redacted:token>; foo=1' });
+      maskHeadersSecure({ cookie: 'SESSION_ID=abc; access_token=eyJ.x.y; foo=1' }, cfg, sec),
+    ).toEqual({ cookie: 'SESSION_ID={{SESSION_ID}}; access_token=<redacted:token>; foo=1' });
   });
 
   it('redacts an Authorization header by value shape', () => {
@@ -72,51 +72,66 @@ describe('maskHeadersSecure', () => {
     });
   });
 
-  it('still redacts the bili_ticket cookie without the generic ticket rule', () => {
-    expect(maskHeadersSecure({ cookie: 'bili_ticket=eyJhbGci.abc.def' }, cfg, sec)).toEqual({
-      cookie: 'bili_ticket=<redacted:token>',
+  it('redacts an unregistered cookie by credential shape', () => {
+    expect(maskHeadersSecure({ cookie: 'custom_auth=eyJhbGci.abc.def' }, cfg, sec)).toEqual({
+      cookie: 'custom_auth=<redacted:token>',
     });
   });
 
   it('returns layer-1 output unchanged when disabled', () => {
     const disabled = { ...sec, enabled: false };
     expect(
-      maskHeadersSecure({ cookie: 'SESSDATA=abc; foo=1' }, cfg, disabled),
-    ).toEqual({ cookie: 'SESSDATA={{SESSDATA}}; foo=1' });
+      maskHeadersSecure({ cookie: 'SESSION_ID=abc; foo=1' }, cfg, disabled),
+    ).toEqual({ cookie: 'SESSION_ID={{SESSION_ID}}; foo=1' });
   });
 });
 
 describe('maskUrlSecure', () => {
   it('redacts sensitive query params and keeps plain ones', () => {
     expect(
-      maskUrlSecure('https://show.bilibili.com/a?version=1&token=abc&project_id=9', cfg, sec),
-    ).toBe('https://show.bilibili.com/a?version=1&token=<redacted:token>&project_id=9');
+      maskUrlSecure('https://shop.example.invalid/a?version=1&token=abc&project_id=9', cfg, sec),
+    ).toBe('https://shop.example.invalid/a?version=1&token=<redacted:token>&project_id=9');
   });
 
   it('keeps registered query values as placeholders', () => {
-    expect(maskUrlSecure('https://api.bilibili.com/x?SESSDATA=abc', cfg, sec)).toBe(
-      'https://api.bilibili.com/x?SESSDATA={{SESSDATA}}',
+    expect(maskUrlSecure('https://api.example.invalid/x?SESSION_ID=abc', cfg, sec)).toBe(
+      'https://api.example.invalid/x?SESSION_ID={{SESSION_ID}}',
     );
   });
 
   it('returns layer-1 output unchanged when disabled', () => {
     const disabled = { ...sec, enabled: false };
     expect(
-      maskUrlSecure('https://show.bilibili.com/a?token=abc&SESSDATA=x', cfg, disabled),
-    ).toBe('https://show.bilibili.com/a?token=abc&SESSDATA={{SESSDATA}}');
+      maskUrlSecure('https://shop.example.invalid/a?token=abc&SESSION_ID=x', cfg, disabled),
+    ).toBe('https://shop.example.invalid/a?token=abc&SESSION_ID={{SESSION_ID}}');
   });
 });
 
 describe('maskBodySecure', () => {
+  it('masks arbitrary application fields through the collection registry', () => {
+    const custom = maskConfigFromCollection({ ...collection, auth: {
+      app_credential: { kind: 'cookie', name: 'app_credential', doc: '' },
+      'X-Custom-Login': { kind: 'header', name: 'X-Custom-Login', doc: '' },
+    } });
+    expect(classifySensitiveName('app_credential', sec)).toBeNull();
+    expect(maskHeadersSecure({ cookie: 'app_credential=opaque', 'x-custom-login': 'opaque' }, custom, sec)).toEqual({
+      cookie: 'app_credential={{app_credential}}', 'x-custom-login': '{{X-Custom-Login}}',
+    });
+    expect(maskUrlSecure('https://api.example.invalid/?app_credential=opaque', custom, sec)).toBe(
+      'https://api.example.invalid/?app_credential={{app_credential}}',
+    );
+    expect(maskBodySecure({ app_credential: 123 }, custom, sec)).toEqual({ app_credential: '{{app_credential}}' });
+  });
+
   it('redacts sensitive keys including numeric values', () => {
     expect(
       maskBodySecure(
-        { mid: 431260381, name: 'x', nested: { phone: '13800000000', token: 'abc' } },
+        { user_id: 431260381, name: 'x', nested: { phone: '13800000000', token: 'abc' } },
         cfg,
         sec,
       ),
     ).toEqual({
-      mid: '<redacted:pii>',
+      user_id: '<redacted:pii>',
       name: 'x',
       nested: { phone: '<redacted:pii>', token: '<redacted:token>' },
     });
@@ -124,8 +139,8 @@ describe('maskBodySecure', () => {
 
   it('redacts a token inside an embedded signed URL string', () => {
     expect(
-      maskBodySecure('//i0.hdslb.com/a.jpeg?token=dae217%3Axyz', cfg, sec),
-    ).toBe('//i0.hdslb.com/a.jpeg?token=<redacted:token>');
+      maskBodySecure('//cdn.example.invalid/a.jpeg?token=dae217%3Axyz', cfg, sec),
+    ).toBe('//cdn.example.invalid/a.jpeg?token=<redacted:token>');
   });
 
   it('keeps ticketing-domain response fields unchanged', () => {
@@ -139,15 +154,15 @@ describe('maskBodySecure', () => {
   });
 
   it('does not re-redact a placeholder under a sensitive key', () => {
-    expect(maskBodySecure({ SESSDATA: '{{SESSDATA}}' }, cfg, sec)).toEqual({
-      SESSDATA: '{{SESSDATA}}',
+    expect(maskBodySecure({ SESSION_ID: '{{SESSION_ID}}' }, cfg, sec)).toEqual({
+      SESSION_ID: '{{SESSION_ID}}',
     });
   });
 
   it('returns layer-1 output unchanged when disabled', () => {
     const disabled = { ...sec, enabled: false };
     expect(
-      maskBodySecure({ mid: 431260381, SESSDATA: 'abc' }, cfg, disabled),
-    ).toEqual({ mid: 431260381, SESSDATA: '{{SESSDATA}}' });
+      maskBodySecure({ user_id: 431260381, SESSION_ID: 'abc' }, cfg, disabled),
+    ).toEqual({ user_id: 431260381, SESSION_ID: '{{SESSION_ID}}' });
   });
 });

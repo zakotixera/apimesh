@@ -2,7 +2,7 @@
   "name": "apic",
   "version": "0.1.0",
   "private": true,
-  "description": "bilibili-collection deterministic executor (HAR → canonical → dist)",
+  "description": "Universal CLI for apimesh workflows (HAR → canonical → dist)",
   "bin": {
     "apic": "dist/cli.js"
   },
@@ -31,5 +31,14 @@
     "@types/node": "^22.9.0",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5"
+  },
+  "overrides": {
+    "postman-request": "2.88.1-postman.48",
+    "postman-collection": {
+      "@faker-js/faker": "6.3.1"
+    },
+    "serialised-error": {
+      "uuid": "8.3.2"
+    }
   }
 }

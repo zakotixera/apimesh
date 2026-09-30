@@ -8,14 +8,13 @@ import { headerValue, isJsonMime, mediaType, requestBodyText, requestMime, respo
 import type { BodyParam } from '../lib/types';
 
 export const POSTMAN_COLLECTION_FILE =
-  'postman/bilibili-collection.postman_collection.json';
+  'postman/endpoints.postman_collection.json';
 export const POSTMAN_ENVIRONMENT_FILE =
-  'postman/bilibili-collection.postman_environment.json';
+  'postman/replay.postman_environment.json';
 
 const POSTMAN_SCHEMA =
   'https://schema.getpostman.com/json/collection/v2.1.0/collection.json';
 
-const DEFAULT_BASE_URL = 'https://api.bilibili.com';
 const LOCAL_REPLAY_BASE_URL = 'http://127.0.0.1:4010';
 
 /** Create a deterministic UUID-shaped identifier from a SHA-1 seed. */
@@ -303,7 +302,7 @@ export function renderPostman(corpus: LoadedCorpus): GeneratedFile[] {
     variable: [
       {
         key: 'baseUrl',
-        value: collection.bases.web ?? DEFAULT_BASE_URL,
+        value: collection.bases[Object.keys(collection.bases).sort(compareCodepoint)[0]] ?? LOCAL_REPLAY_BASE_URL,
         type: 'string',
       },
     ],

@@ -6,7 +6,7 @@ import { renderPostman } from '../src/renderers/postman';
 import { corpus, example } from './fixtures';
 
 const cfg = maskConfigFromCollection({ name: 'test', version: '1', bases: {}, changelog: [], auth: {
-  SESSDATA: { kind: 'cookie', name: 'SESSDATA', doc: '' },
+  SESSION_ID: { kind: 'cookie', name: 'SESSION_ID', doc: '' },
   CustomAuth: { kind: 'header', name: 'CustomAuth', doc: '' },
 } });
 const sec = defaultSecurityMaskerConfig();
@@ -17,8 +17,8 @@ function request(captured: ReturnType<typeof capturePostData>) {
 }
 describe('body capture, masking and export', () => {
   it('masks encoded form names and all duplicates while preserving untouched bytes', () => {
-    const result = capture('application/x-www-form-urlencoded; charset=UTF-8', 'q=a+b&q=a%20b&pass%77ord=secret&password=other&SESSDATA=cookie&empty=');
-    expect(result.body).toBe('q=a+b&q=a%20b&pass%77ord=%3Credacted%3Asecret%3E&password=%3Credacted%3Asecret%3E&SESSDATA=%7B%7BSESSDATA%7D%7D&empty=');
+    const result = capture('application/x-www-form-urlencoded; charset=UTF-8', 'q=a+b&q=a%20b&pass%77ord=secret&password=other&SESSION_ID=cookie&empty=');
+    expect(result.body).toBe('q=a+b&q=a%20b&pass%77ord=%3Credacted%3Asecret%3E&password=%3Credacted%3Asecret%3E&SESSION_ID=%7B%7BSESSION_ID%7D%7D&empty=');
     expect(request(result).body.raw).toBe(result.body);
     expect(JSON.stringify(result)).not.toContain('cookie');
   });

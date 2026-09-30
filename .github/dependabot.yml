@@ -9,7 +9,7 @@ updates:
         patterns: ['*']
 
   - package-ecosystem: npm
-    directory: /workflows/cli
+    directory: /workflow/cli
     schedule:
       interval: weekly
     groups:

@@ -1,4 +1,4 @@
-# bilibili-collection
+# apimesh
 
 [English](README.md) | **简体中文**
 
@@ -58,10 +58,10 @@
 
 | Skill | 职责 |
 |---|---|
-| [`pipeline`](workflows/skills/pipeline/SKILL.md) | 编排流程、处理失败、整理审阅材料 |
-| [`classify`](workflows/skills/classify/SKILL.md) | 按语义分类，将结果合并至规范数据源 |
-| [`notes`](workflows/skills/notes/SKILL.md) | 按需编写基于录制数据的说明 |
-| [`drift`](workflows/skills/drift/SKILL.md) | 分析 `apic drift` 差异报告，按任务要求更新规范数据源 |
+| [`pipeline`](workflow/skills/pipeline/SKILL.md) | 编排流程、处理失败、整理审阅材料 |
+| [`classify`](workflow/skills/classify/SKILL.md) | 按语义分类，将结果合并至规范数据源 |
+| [`notes`](workflow/skills/notes/SKILL.md) | 按需编写基于录制数据的说明 |
+| [`drift`](workflow/skills/drift/SKILL.md) | 分析 `apic drift` 差异报告，按任务要求更新规范数据源 |
 
 ### 异常处理
 
@@ -78,13 +78,13 @@
 从仓库根目录运行：
 
 ```sh
-cd workflows/cli
+cd workflow/cli
 npm ci
 npm run build
 npm run apic -- --help
 ```
 
-在 `workflows/cli` 目录中运行 CLI 检查：
+在 `workflow/cli` 目录中运行 CLI 检查：
 
 ```sh
 npm run typecheck
@@ -107,21 +107,21 @@ npm run test:local
 
 | 路径 | 用途 |
 |---|---|
-| `workflows/skills/` | 语义分析与流程编排指令 |
-| `workflows/cli/` | TypeScript 执行器、渲染器、回放服务、测试 |
+| `workflow/skills/` | 语义分析与流程编排指令 |
+| `workflow/cli/` | TypeScript 执行器、渲染器、回放服务、测试 |
 | `schema/` | 规范数据的 JSON Schema |
 | `collection.json`、`glossary.json` | 共享元数据与词汇表 |
 | `sources/` | HAR 原始录制文件 |
 | `apis/` | 规范数据源中的定义、样例与说明 |
 | `.raw/`、`.reports/` | 临时抽取稿与诊断信息 |
 | `dist/` | 面向不同使用方的生成产物 |
-| `workflows/cli/dist/` | CLI 编译结果 |
+| `workflow/cli/dist/` | CLI 编译结果 |
 | `.github/workflows/` | CI 配置 |
 
 ## 文档
 
-- 工作流：[执行层](workflows/README.md)、[Agent skills](workflows/skills/README.md)。
-- 工具：[CLI 用法与限制](workflows/cli/README.md)、[CI](.github/workflows/ci.yml)。
+- 工作流：[执行层](workflow/README.md)、[Agent skills](workflow/skills/README.md)。
+- 工具：[CLI 用法与限制](workflow/cli/README.md)、[CI](.github/workflows/ci.yml)。
 
 ## 许可证
 

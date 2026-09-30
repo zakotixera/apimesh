@@ -23,4 +23,3 @@ Thumbs.db
 .idea/
 
 # NOTE: sources/ and dist/ are intentionally tracked.
-lim(x->0)

@@ -16,7 +16,7 @@ concurrency:
 defaults:
   run:
     shell: bash
-    working-directory: workflows/cli
+    working-directory: workflow/cli
 
 jobs:
   checks:
@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: workflows/cli/package-lock.json
+          cache-dependency-path: workflow/cli/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -58,7 +58,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           for pass in 1 2; do
-            npm --prefix workflows/cli run apic -- render --all
+            npm --prefix workflow/cli run apic -- render --all
             # Unlike git diff alone, status also detects new generated files.
             changes=$(git status --porcelain=v1 --untracked-files=all -- dist/)
             if [[ -n "$changes" ]]; then

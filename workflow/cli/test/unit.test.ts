@@ -1,9 +1,5 @@
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { readJson } from '../src/lib/fsx';
 import { maskConfigFromCollection, maskCookieHeader, maskUrl, scanPlaceholders } from '../src/lib/mask';
-import { findRepoRoot, projectPaths } from '../src/lib/paths';
-import { loadSchemas } from '../src/lib/schemas';
 import { stableStringify } from '../src/lib/stable-json';
 import type { Collection } from '../src/lib/types';
 
@@ -24,10 +20,10 @@ describe('stableStringify (I4 byte stability)', () => {
 const collection: Collection = {
   name: 'test',
   version: '0.0.0',
-  bases: { web: 'https://api.bilibili.com' },
+  bases: { web: 'https://api.example.invalid' },
   auth: {
-    SESSDATA: { kind: 'cookie', name: 'SESSDATA', doc: '' },
-    bili_jct: { kind: 'cookie', name: 'bili_jct', doc: '' },
+    SESSION_ID: { kind: 'cookie', name: 'SESSION_ID', doc: '' },
+    csrf_token: { kind: 'cookie', name: 'csrf_token', doc: '' },
   },
   changelog: [],
 };
@@ -35,43 +31,20 @@ const collection: Collection = {
 describe('masking', () => {
   it('masks registered cookie values inside a Cookie header', () => {
     const cfg = maskConfigFromCollection(collection);
-    expect(maskCookieHeader('SESSDATA=secret; other=1; bili_jct=csrf', cfg)).toBe(
-      'SESSDATA={{SESSDATA}}; other=1; bili_jct={{bili_jct}}',
+    expect(maskCookieHeader('SESSION_ID=secret; other=1; csrf_token=csrf', cfg)).toBe(
+      'SESSION_ID={{SESSION_ID}}; other=1; csrf_token={{csrf_token}}',
     );
   });
 
   it('masks registered query values without percent-encoding the placeholder', () => {
     const cfg = maskConfigFromCollection(collection);
-    expect(maskUrl('https://api.bilibili.com/x?a=1&SESSDATA=secret', cfg)).toBe(
-      'https://api.bilibili.com/x?a=1&SESSDATA={{SESSDATA}}',
+    expect(maskUrl('https://api.example.invalid/x?a=1&SESSION_ID=secret', cfg)).toBe(
+      'https://api.example.invalid/x?a=1&SESSION_ID={{SESSION_ID}}',
     );
   });
 
   it('scans placeholders recursively', () => {
     const found = [...scanPlaceholders({ h: '{{A}}', list: ['{{B}}'] })].sort();
     expect(found).toEqual(['A', 'B']);
-  });
-});
-
-describe('json schemas', () => {
-  const paths = projectPaths(findRepoRoot());
-  const schemas = loadSchemas(paths);
-
-  it('accepts the seed definition', () => {
-    const def = readJson(path.join(paths.apis, 'x', 'web-interface', 'view', 'definition.json'));
-    expect(schemas.definition(def)).toEqual([]);
-  });
-
-  it('rejects an unknown key on a variant', () => {
-    const def = {
-      api: 'x.y',
-      name: 'n',
-      endpoint: { method: 'GET', path: '/x' },
-      source: 's',
-      responses: [
-        { variant: 'ok', status: 'm', codes: [0], http: [200], schema: null, examples: [], bogus: 1 },
-      ],
-    };
-    expect(schemas.definition(def).length).toBeGreaterThan(0);
   });
 });

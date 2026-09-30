@@ -1,4 +1,4 @@
-# bilibili-collection
+# apimesh
 
 **English** | [简体中文](README.zh-CN.md)
 
@@ -58,10 +58,10 @@ Agent-assisted HTTP recording maintenance, canonical modeling, and reproducible 
 
 | Skill | Role |
 |---|---|
-| [`pipeline`](workflows/skills/pipeline/SKILL.md) | Stage orchestration, failure recovery, review handoff |
-| [`classify`](workflows/skills/classify/SKILL.md) | Semantic classification and canonical merges |
-| [`notes`](workflows/skills/notes/SKILL.md) | Optional evidence-based explanations |
-| [`drift`](workflows/skills/drift/SKILL.md) | Interpretation of `apic drift` reports; requested canonical updates |
+| [`pipeline`](workflow/skills/pipeline/SKILL.md) | Stage orchestration, failure recovery, review handoff |
+| [`classify`](workflow/skills/classify/SKILL.md) | Semantic classification and canonical merges |
+| [`notes`](workflow/skills/notes/SKILL.md) | Optional evidence-based explanations |
+| [`drift`](workflow/skills/drift/SKILL.md) | Interpretation of `apic drift` reports; requested canonical updates |
 
 ### Failure handling
 
@@ -78,13 +78,13 @@ Requirements: Node.js **20+**, npm; an agent following the repository skills for
 From the repository root:
 
 ```sh
-cd workflows/cli
+cd workflow/cli
 npm ci
 npm run build
 npm run apic -- --help
 ```
 
-CLI checks, from `workflows/cli`:
+CLI checks, from `workflow/cli`:
 
 ```sh
 npm run typecheck
@@ -107,21 +107,21 @@ Verification scope: structural consistency, reproducibility, committed-output sy
 
 | Path | Role |
 |---|---|
-| `workflows/skills/` | Semantic work and orchestration instructions |
-| `workflows/cli/` | TypeScript executor, renderers, replay server, tests |
+| `workflow/skills/` | Semantic work and orchestration instructions |
+| `workflow/cli/` | TypeScript executor, renderers, replay server, tests |
 | `schema/` | Canonical JSON Schemas |
 | `collection.json`, `glossary.json` | Shared metadata and vocabulary |
 | `sources/` | HAR source recordings |
 | `apis/` | Canonical definitions, examples, notes |
 | `.raw/`, `.reports/` | Temporary drafts and diagnostics |
 | `dist/` | Generated consumer files |
-| `workflows/cli/dist/` | Compiled CLI code |
+| `workflow/cli/dist/` | Compiled CLI code |
 | `.github/workflows/` | CI configuration |
 
 ## Documentation
 
-- Workflow: [execution layer](workflows/README.md), [skills](workflows/skills/README.md).
-- Tooling: [CLI usage and limitations](workflows/cli/README.md), [CI](.github/workflows/ci.yml).
+- Workflow: [execution layer](workflow/README.md), [skills](workflow/skills/README.md).
+- Tooling: [CLI usage and limitations](workflow/cli/README.md), [CI](.github/workflows/ci.yml).
 
 ## License
 

@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   const program = new Command();
   program
     .name('apic')
-    .description('bilibili-collection deterministic executor (HAR -> canonical -> dist)')
+    .description('Universal CLI for apimesh workflows (HAR -> canonical -> dist)')
     .version('0.1.0');
 
   program.addCommand(extractCommand());

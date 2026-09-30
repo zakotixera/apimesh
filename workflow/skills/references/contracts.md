@@ -28,6 +28,7 @@ Pipeline invokes these responsibilities; it is not a second canonical writer. Fo
 
 - Read sanitized extraction drafts and canonical examples for semantic work. Preserve placeholders and redaction markers; never reconstruct credentials or quote raw secrets in reports.
 - Extraction's optional `bodyMeta` is currently not accepted by the canonical example schema. Retain affected drafts and report the integration blocker. Do not remove metadata, parse-and-replace stored JSON text, or hide metadata behind an ignored `x-` key to force a passing import.
+- Examples in these instructions are synthetic. Derive endpoint paths, authentication names, business codes, and meanings from the current collection and its recordings.
 - Keep API identity, semantic slugs, and existing recordings stable. Do not infer authentication requirements, parameter requiredness, or guaranteed behavior from one observation.
 - The example filename is exactly `<http>.<codeN|http-only>.<variant>.json`; variant is a glossary slug. One tuple has one filename under the current model. Different recordings colliding on that name require an explicit modeling decision, not an invented suffix or overwrite.
 - `x-` fields are an extension mechanism, not an alternate storage format consumers automatically understand.

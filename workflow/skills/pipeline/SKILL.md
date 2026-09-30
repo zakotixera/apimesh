@@ -1,11 +1,11 @@
 ---
 name: pipeline
-description: 编排 bilibili-collection 的 HAR 导入全链：extract、classify、可选 notes、validate、render、本地 replay 与 PR 交接。用户要求处理一批 HAR、更新合集并验证生成物、恢复失败流水线或准备完整导入 PR 时使用；仅分类、写导读、裁决漂移分别交给 classify、notes、drift。
+description: 编排 HAR 导入全链：extract、classify、可选 notes、validate、render、本地 replay 与 PR 交接。用户要求处理一批 HAR、更新合集并验证生成物、恢复失败流水线或准备完整导入 PR 时使用；仅分类、写导读、裁决漂移分别交给 classify、notes、drift。
 ---
 
 # pipeline · 总编排
 
-串联 W2–W7 并交接审阅（W9）。每一步消费前一步可检查的结果；失败后修复责任层，再从受影响的闸门继续。
+串联抽取、分类、校验、渲染与回放，并交接审阅。每一步消费前一步可检查的结果；失败后修复责任层，再从受影响的闸门继续。
 
 ## 准备
 
@@ -51,4 +51,4 @@ if ($LASTEXITCODE -ne 0) { throw 'apic extract failed' }
 
 列出处理的输入、变更接口与文件、各闸门实际结果、warnings / 未决项和 PR 链接（如已创建）。未运行项写「未运行」及原因；本地 replay 通过不代表线上接口可用。
 
-两次 render 的哈希相等验证确定性；CI 在提交后执行的 `git diff --exit-code dist/` 验证提交的产物与 canonical 同步。当前工作区存在预期的新生成物时，不能把相对 HEAD 的 diff 当作确定性失败，也不能遗漏 untracked 产物。
+两次 render 的哈希相等验证确定性；CI 在提交后执行的 `git status --porcelain=v1 --untracked-files=all -- dist/` 验证提交的产物与 canonical 同步。当前工作区存在预期的新生成物时，不能把相对 HEAD 的 diff 当作确定性失败，也不能遗漏 untracked 产物。

@@ -6,7 +6,7 @@ Both render passes must leave the committed `dist/` tree unchanged, including ad
 
 Runs have time limits, read-only repository permissions, and no persisted checkout credentials. A newer pull request run cancels an older run for the same pull request. Actions are pinned to commit hashes; [Dependabot](dependabot.yml) checks actions and CLI dependencies weekly.
 
-To reproduce a runtime's checks locally, use the matching Node.js version and run from `workflows/cli/`:
+To reproduce a runtime's checks locally, use the matching Node.js version and run from `workflow/cli/`:
 
 ```sh
 npm ci
