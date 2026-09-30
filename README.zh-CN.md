@@ -73,6 +73,8 @@
 
 ## 开发
 
+创建特定应用的 API 合集，请参阅 [Fork 与开发指南](DEVELOPMENT.md)。
+
 环境要求：Node.js **20+**、npm；语义分析阶段需要由 Agent 按仓库中的 skill 指令执行。
 
 从仓库根目录运行：

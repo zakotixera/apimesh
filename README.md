@@ -73,6 +73,8 @@ Agent-assisted HTTP recording maintenance, canonical modeling, and reproducible 
 
 ## Development
 
+To create an application-specific API collection, follow the [fork and development guide](DEVELOPMENT.md).
+
 Requirements: Node.js **20+**, npm; an agent following the repository skills for semantic workflow stages.
 
 From the repository root:
