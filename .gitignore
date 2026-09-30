@@ -1,11 +1,11 @@
 # Scratch / regenerable staging (extract drafts)
 # Contents are regenerable and ignored; the directory's README is documentation and tracked.
-# NOTE: must ignore .extract/* (contents), not .extract/ (the dir), or git cannot re-include the README.
-.extract/*
-!.extract/README.md
+.raw/*
+!.raw/README.md
 
 # Disposable CLI diagnostics (extract / validate / drift)
-.reports/
+.reports/*
+!.reports/README.md
 
 # Local tool state (agent session continuity, etc.)
 .omo/
@@ -21,3 +21,6 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# NOTE: sources/ and dist/ are intentionally tracked.
+lim(x->0)
