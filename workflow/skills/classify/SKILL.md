@@ -1,21 +1,21 @@
 ---
 name: classify
-description: 将 apic extract 的 YAML 抽取稿合并为 apis/ 下的 canonical 定义与样例，维护 glossary 的语义命名。用户要求分类响应、合并变体或处理 unclassified 时使用；完整 HAR 导入链交给 pipeline，漂移报告裁决交给 drift。
+description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范定义与样例，维护 glossary 的语义命名。用于响应分类、变体合并和未分类观测处理；完整 HAR 导入使用 pipeline，漂移评估使用 drift。
 ---
 
 # classify · 语义分类
 
-把已打码的观测整理成可验证的 canonical。变体以语义 slug 为主键，HTTP / 业务码只是观测信号；相同数字在不同接口可能含义不同。
+将已脱敏的观测整理为规范数据（canonical）。变体以语义 slug 标识，HTTP 状态码和业务码用于辅助分类；相同数值在不同接口中可能具有不同含义。
 
 ## 开始前
 
-1. 读 [共享契约](../references/contracts.md)，按其中的路径约定定位仓库根。
-2. 确定用户指定的 YAML 文件或 pipeline 传入的抽取目录。没有指定时检查 `.raw/`，只处理本次范围，避免把历史稿当成新捕获。
-3. 读相关 definition、已挂载 examples、`glossary.json`、`collection.json`，以及 `schema/definition.schema.json`、`schema/example.schema.json`。字段含义与分类规则见下文「分类与合并」；若文档示例与 schema / validator 冲突，报告冲突，不照抄示例。
+1. 阅读 [共享契约](../references/contracts.md)，按路径约定定位仓库根目录。
+2. 确认用户指定的 YAML 文件或 pipeline 提供的抽取目录。未指定时检查 `.raw/`，区分本次输入与历史抽取结果。
+3. 阅读相关 definition、引用的 examples、`glossary.json`、`collection.json` 及 definition、example schema。文档示例与 schema 或校验器不一致时，报告差异及其影响。
 
 ## 输入与输出
 
-抽取稿是 `version: 1`、`generated_from`、`endpoints[]`；每个 endpoint 有 `method`、`path`、`frames[]`。每帧含 `http`、`code`、`captured`、可选 `origin`、`account`、`request`、`response`。以内容里的 method/path 为准，不从文件名猜接口。body 表示与限制见 [CLI 文档](../../cli/README.md)。
+抽取结果包含 `version: 1`、`generated_from`、`endpoints[]`；每个 endpoint 包含 `method`、`path`、`frames[]`。每帧包含 `http`、`code`、`captured`、可选 `origin`、`account`、`request`、`response`。以内容中的 method/path 确定端点。body 表示方式与限制见 [CLI 文档](../../cli/README.md)。
 
 仅写本次涉及的：
 
@@ -23,28 +23,28 @@ description: 将 apic extract 的 YAML 抽取稿合并为 apis/ 下的 canonical
 - `apis/<static path>/examples/<http>.<codeN|http-only>.<variant>.json`
 - `glossary.json` 中有证据支持的新语义域
 
-例如 `/catalog/items` 对应 `apis/catalog/items/`；`ok` 变体的 HTTP 200、业务码 0 样例名为 `200.code0.ok.json`。第三段必须等于 variant，不能另起 `normal` 之类的别名。
+例如 `/catalog/items` 对应 `apis/catalog/items/`；`ok` 变体的 HTTP 200、业务码 0 样例名为 `200.code0.ok.json`。文件名第三段与 variant 保持一致。
 
 ## 分类与合并
 
-1. **先检查是否可落库。** 保留打码、捕获时间、请求、响应与 body 表示。当前 example schema 不接受 `request.bodyMeta` / `response.bodyMeta`；遇到这些帧，保留抽取稿并报告兼容性阻塞，不删 metadata、不把文本 JSON 改成对象、不转存到渲染器不识别的 `x-` 字段来绕过校验。兼容性需另行修复 schema 与消费链后才能导入；无该问题的帧可以继续。
-2. **解析分类信号。** 对照帧 `code` 与响应 body；CLI 按有限数字 `code`、其次有限数字 `errno` 解析业务码，否则为 `null`。JSON 文本可为分析解析，但不替换存储值。schema 要求业务码为整数；类型不支持或冗余值不一致时报告，不把字符串码强转、不把异常值猜成成功。`null` 才使用 `http-only`。
-3. **找已有语义。** 对照端点上下文、响应消息、结构和既有 examples，先匹配该接口的 `responses[]`。同语义才合并，不能仅凭 HTTP 200、code 0 或 glossary 的数字提示决定。
-4. **查 glossary。** 没有对应变体时，查 `known-codes` / `http-shapes` 和 `meaning`；这些是提示，不是 code → meaning 的硬映射。有清晰新语义时先添加最小 glossary 域，再引用其 slug；保留接口特有解释于 variant 的 `status`。
-5. **合并已确认观测。** 保留已有 slug / api id；把新 code 和 HTTP 状态追加到 `codes[]` / `http[]` 并去重，保留语义顺序，不因一次捕获缺席就删除旧观测。挂载样例，`examples[]` 按捕获时间排列，每个文件恰好被一个 variant 引用。
-6. **构建观测结构。** `request.query` / `request.body` 的参数用 `{type, required, default, desc}`；headers / cookies 是名 → 字符串值。`default` 是观测值，不是服务端默认值；单次出现不能证明参数必填或鉴权 required，缺乏证据时保守省略并在交接中说明。响应 `schema` 用 BodyNode 类型树，不放 `const` / `default` / `desc`；多类型观测用类型并集，空数组 `items: null`，body 不可信用 `schema: null`。变体 headers 只保留所有挂载样例中键值均一致的公共头。
+1. **检查导入兼容性。** 保留脱敏标记、捕获时间、请求、响应与 body 表示。含 `request.bodyMeta` / `response.bodyMeta` 的帧按共享契约中的兼容性规则处理；schema 与消费链支持前保留在抽取目录，并报告阻塞原因。其他有效帧可以继续导入。
+2. **解析分类信号。** 对照帧 `code` 与响应 body。CLI 优先读取有限数字 `code`，其次读取有限数字 `errno`，否则返回 `null`。schema 要求业务码为整数；类型不支持或冗余值不一致时报告，不强制转换字符串码。仅 `null` 使用 `http-only`。JSON 文本可解析用于分析，存储值保持原样。
+3. **匹配已有变体。** 结合端点上下文、响应消息、结构和既有 examples，检查该接口的 `responses[]`。确认语义一致后合并；HTTP 状态码、业务码和 glossary 数值提示不能单独确定语义。
+4. **维护 glossary。** 没有对应变体时，参考 `known-codes`、`http-shapes` 和 `meaning`。有证据支持新语义时添加必要的 glossary 域，再引用其 slug；接口特有说明保留在 variant 的 `status` 中。
+5. **合并已确认观测。** 保留已有 slug、API 标识与历史观测。将新增 code 和 HTTP 状态追加到 `codes[]` / `http[]` 并去重，保留语义顺序。`examples[]` 按捕获时间排列，每个样例文件恰好由一个 variant 引用。
+6. **描述观测结构。** `request.query` / `request.body` 的参数使用 `{type, required, default, desc}`；headers / cookies 使用名称到字符串值的映射。`default` 表示观测值；参数必填性和鉴权要求需有独立依据，证据不足时省略可选声明并说明。响应 `schema` 使用 BodyNode 类型树，不包含 `const` / `default` / `desc`；多类型观测使用类型并集，空数组使用 `items: null`，无法确定可信 body 结构时使用 `schema: null`。变体 headers 仅保留所有引用样例中键值均一致的响应头。
 
-同语义跨壳示例：已确认的「条目不存在」分别表现为 HTTP 200 + `code: 1004` 和 HTTP 404 + 无业务码，仍可归入同一个 `not-found`，`codes: [1004]`、`http: [200, 404]`，分别挂载 `200.code1004.not-found.json` 与 `404.http-only.not-found.json`。
+同一语义可以对应不同的状态码组合。例如，已确认的「条目不存在」分别表现为 HTTP 200 + `code: 1004` 和 HTTP 404 + 无业务码时，可归入同一个 `not-found`，使用 `codes: [1004]`、`http: [200, 404]`，分别引用 `200.code1004.not-found.json` 与 `404.http-only.not-found.json`。
 
 ## 歧义与模型限制
 
-- **unclassified：** 证据不足时不落臆测变体、不新增无依据的 glossary 域。保留原抽取稿，在交接中列出 method/path、稿件文件、捕获时间、HTTP/code、已知证据、缺失信息及下一步。`unclassified` 是处理状态，不是默认存在的 glossary slug；也没有裸 `flag` 字段。已确认部分可落库，但报告「部分完成」。
-- **文件名冲突：** 同 endpoint / HTTP / code / variant 只能对应当前规范的一个文件名。已有记录与新帧相同则复用；不同则保留已有文件和新抽取稿，报告冲突。不要覆盖录像、加时间后缀、改 slug 来腾位置。
-- **端点冲突：** 当前目录只能放一个 definition。遇到同路径不同 method、host 不同且语义不同，或无法映射到静态路径的动态段时报告建模阻塞；不覆盖接口、不擅自将 URL 路径改写为 query。
-- **输入保护：** 不改 `sources/`、抽取稿或 manifest；不手写 `dist/`。抽取安全打码并不保证任意文本或二进制已脱敏，明显未打码内容不得复制进 canonical 或交接报告。
+- **未分类观测：** 证据不足时保留原抽取结果，列出 method/path、文件、捕获时间、HTTP/code、已知证据、缺失信息及下一步。`unclassified` 是处理状态，不是预设 glossary slug；schema 未定义独立的 `flag` 字段。已确认部分可以导入，结果标记为「部分完成」。
+- **文件名冲突：** 同 endpoint / HTTP / code / variant 只能对应当前规范的一个文件名。已有记录与新帧相同则复用；不同时保留两份输入并报告冲突。新增后缀、替换记录或改变 slug 需要先解决数据模型限制。
+- **端点冲突：** 每个目录只能包含一个 definition。同路径不同 method、不同 host 且语义不同，或动态路径无法映射到静态路径时，保留输入并报告建模限制，不覆盖已有定义或改写请求路径。
+- **输入保护：** 保持 `sources/`、抽取结果和 manifest 不变。任意文本或二进制可能仍含未脱敏信息；发现时保留待处理状态，避免复制到规范数据或交接内容。
 
 ## 校验与交接
 
-按共享契约格式保存。独立调用时，从 `workflow/cli` 运行 `npm run apic -- validate`；由 pipeline 调用时交还它执行同一闸门，避免重复运行。修复本次引入的错误，保留并说明已有错误和 warnings；不能通过删样例、改断言或手改报告让校验变绿。
+按共享契约格式保存。独立调用时，从 `workflow/cli` 运行 `npm run apic -- validate`；由 pipeline 调用时交由其执行校验。修复本次引入的错误，报告已有错误和警告；保留有效样例、校验规则及 CLI 生成的报告。
 
-输出简短交接：已改文件与接口、每个语义归类的依据、复用 / 新增的 slug、未导入帧及原因、validate 的结果或待运行状态。0 error 只说明已落库数据有效；所有目标帧均有去向且无未决项，才报告分类完成。
+交接内容包括变更文件与接口、分类依据、复用或新增的 slug、未导入帧及原因，以及校验结果或待运行状态。校验通过说明已导入数据通过检查；所有目标帧均已处理且无未决项时，才报告分类完成。

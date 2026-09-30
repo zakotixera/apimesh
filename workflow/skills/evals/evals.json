@@ -8,14 +8,14 @@
         "classify"
       ],
       "prompt": "Dry run only: classify four sanitized observations for GET /catalog/items. Existing not-found has codes [1004], http [200], and 200.code1004.not-found.json; its body says the item is missing. Frame A is a complete HTTP 404 capture, no business code, same missing-item meaning, captured 2026-09-28T01:00:00Z, no bodyMeta. Frame B is another HTTP 200/code 1004 capture with different request query and body than the existing file, no bodyMeta. Frame C is HTTP 200/code 0 with response.body as JSON text and response.bodyMeta {representation: text, source: text, mimeType: application/json}; current example schema rejects bodyMeta. Frame D is HTTP 200/code 78123 with an unexplained opaque message. Give per-frame decisions, exact filenames where applicable, proposed mutations and unresolved items; do not execute CLI commands or edit repository data.",
-      "expected_output": "Merge A into not-found using its HTTP-only filename; preserve B as a collision; retain C with a compatibility blocker; leave D unclassified with evidence gaps. No invented slug, suffix, discarded metadata or full-success claim.",
+      "expected_output": "Merge A into not-found using its HTTP-only filename; retain B as a filename collision; retain C pending bodyMeta support; leave D unclassified with its evidence gaps identified. Preserve existing identifiers, filenames, body text and metadata, and report partial completion.",
       "files": [],
       "assertions": [
         "Merges frame A into not-found with 404.http-only.not-found.json, retains code 1004 and adds HTTP 404.",
-        "Preserves the existing recording for B and reports the filename collision without inventing a suffix or variant.",
-        "Blocks C on bodyMeta incompatibility while preserving the text body and metadata; does not propose stripping or hiding metadata.",
-        "Leaves D unclassified without inventing a semantic glossary entry from code 78123.",
-        "Reports unresolved frames and pending validation without claiming a completed import."
+        "Preserves the existing recording and filename for B, retains the new frame, and reports the collision without adding a suffix or changing the variant.",
+        "Defers importing C because the schema rejects bodyMeta, preserving the original text body and metadata in the draft.",
+        "Leaves D unclassified and the glossary unchanged because code 78123 alone does not establish response meaning.",
+        "Reports unresolved frames and pending validation, and marks the import as incomplete."
       ]
     },
     {
@@ -32,7 +32,7 @@
         "Uses a fresh --out directory and passes that directory to classify, preserving the modified draft and manifest.",
         "Preserves unrelated changes and keeps delivery local without creating a PR.",
         "Compares generated file paths and content hashes across consecutive renders, including untracked files.",
-        "Reports partial completion for the blocked bodyMeta frame even if remaining corpus gates pass."
+        "Reports partial completion for the unsupported bodyMeta frame even if the remaining corpus checks pass."
       ]
     },
     {
@@ -42,14 +42,14 @@
         "drift",
         "notes"
       ],
-      "prompt": "Dry run only: assess a drift report, then draft short Chinese endpoint notes; do not apply any canonical edits. The report labels HTTP 404/code 1004 as breaking for catalog.item-details. Existing not-found has HTTP 200/code 1004; complete sanitized examples establish identical missing-item meaning in both shells. Another change is a field absent in one sample (BodyNode has no required contract). A third reports data.id changing number to string, but the underlying capture is unavailable. The CLI exited 0. For notes, definition auth is optional, query itemId default is 42 (an observed value), access-denied has schema null and HTTP 403, and request cookies include {{SESSION_ID}}. Give one decision per change, version implications, then the proposed notes.md text without inventing live behavior.",
-      "expected_output": "Reclassify the shell addition as non-breaking; treat single-sample absence as advisory; defer unsupported type-change judgment; do not bump versions in analysis mode or infer no drift from exit 0. Notes distinguish observed defaults, optional auth, untrusted body and masked credentials.",
+      "prompt": "Dry run only: assess a drift report, then draft short Chinese endpoint notes; do not apply any canonical edits. The report labels HTTP 404/code 1004 as breaking for catalog.item-details. Existing not-found has HTTP 200/code 1004; complete sanitized examples establish identical missing-item meaning in both status-code combinations. Another change is a field absent in one sample (BodyNode has no required contract). A third reports data.id changing number to string, but the underlying capture is unavailable. The CLI exited 0. For notes, definition auth is optional, query itemId default is 42 (an observed value), access-denied has schema null and HTTP 403, and request cookies include {{SESSION_ID}}. Give one decision per change, version implications, then the proposed notes.md text using only behavior supported by the supplied evidence.",
+      "expected_output": "Classify the additional status-code combination as non-breaking; treat single-sample field absence as advisory; defer the type-change assessment until capture evidence is available. Keep versions unchanged in analysis mode and assess the report independently of exit code 0. Notes explain observed defaults, optional authentication, unavailable body structure and masked credentials.",
       "files": [],
       "assertions": [
-        "Reclassifies the confirmed same-meaning shell addition as non-breaking, retaining the existing semantic variant.",
+        "Classifies the additional status-code combination as non-breaking based on confirmed shared meaning, retaining the existing semantic variant.",
         "Treats one missing field as advisory without deleting the existing schema field.",
         "Defers the unsubstantiated type-change judgment, keeps analysis read-only, and does not treat CLI exit 0 as absence of drift.",
-        "Explains that itemId default is observed and auth is optional without inventing login or retry guarantees.",
+        "Explains that itemId default is an observed value and authentication is optional; keeps unsupported login or retry behavior unspecified.",
         "Explains schema null as untrusted/unavailable shape and the cookie placeholder as masked, not a usable credential."
       ]
     }

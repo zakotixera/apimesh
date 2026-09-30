@@ -1,18 +1,18 @@
 # Workflow skills
 
-Repository-specific agent instructions for semantic decisions and pipeline orchestration. Preserve the skill names when invoking or updating them.
+Agent instructions for semantic analysis and workflow coordination in a populated collection repository.
 
 | Request | Skill | Result |
 |---|---|---|
 | Import HAR files through validation, rendering, and replay; resume a failed run | [pipeline](pipeline/SKILL.md) | Verified outputs and a review handoff / PR when in scope |
 | Classify sanitized drafts or merge response variants | [classify](classify/SKILL.md) | Canonical definitions, examples, and necessary glossary additions |
 | Explain an endpoint or refresh its usage notes | [notes](notes/SKILL.md) | Short, evidence-based `notes.md` |
-| Assess capture differences or apply drift fixes | [drift](drift/SKILL.md) | Per-change adjudication; canonical patches when requested |
+| Assess capture differences or apply drift fixes | [drift](drift/SKILL.md) | Assessment of each change; canonical updates when requested |
 
-Skills own canonical edits and delegate deterministic work to the [CLI](../cli/README.md). Generated artifacts remain CLI-owned.
+Skills maintain canonical data and use the [CLI](../cli/README.md) for deterministic processing and artifact generation.
 
-Each skill begins with the [shared contracts](references/contracts.md), then loads the schemas and references needed for its task. These are repository-coupled skills, not standalone packages.
+Each skill begins with the [shared contracts](references/contracts.md), then reads the schemas and references needed for its task. The repository's CLI, schemas, and related skills must be available.
 
-Current integration limits are explicit: extraction `bodyMeta` is not accepted by the example schema, and the filename convention cannot store distinct recordings of the same HTTP/code/variant tuple. Preserve blocked drafts and report partial completion instead of losing evidence.
+Current integration limits include unsupported extraction `bodyMeta` in the example schema and one recording filename per HTTP/code/variant tuple. Preserve affected drafts and report unresolved observations alongside completed work.
 
-See the [pipeline instructions](pipeline/SKILL.md) for handoffs; each `SKILL.md` defines its executable instructions. [Evaluation cases](evals/evals.json) cover cross-skill decisions and recovery paths; they are dry-run exercises, not a substitute for the CLI's corpus and replay tests.
+See the [pipeline instructions](pipeline/SKILL.md) for coordination and handoffs. [Evaluation cases](evals/evals.json) exercise semantic decisions and recovery plans through dry runs. CLI and replay tests separately verify execution behavior.
