@@ -32,7 +32,7 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 3. **匹配已有变体。** 结合端点上下文、响应消息、结构和既有 examples，检查该接口的 `responses[]`。确认语义一致后合并；HTTP 状态码、业务码和 glossary 数值提示不能单独确定语义。
 4. **维护 glossary。** 没有对应变体时，参考 `known-codes`、`http-shapes` 和 `meaning`。有证据支持新语义时添加必要的 glossary 域，再引用其 slug；接口特有说明保留在 variant 的 `status` 中。
 5. **合并已确认观测。** 保留已有 slug、API 标识与历史观测。将新增 code 和 HTTP 状态追加到 `codes[]` / `http[]` 并去重，保留语义顺序。`examples[]` 按捕获时间排列，每个样例文件恰好由一个 variant 引用。
-6. **描述观测结构。** `request.query` / `request.body` 的参数使用 `{type, required, default, desc}`；headers / cookies 使用名称到字符串值的映射。`default` 表示观测值；参数必填性和鉴权要求需有独立依据，证据不足时省略可选声明并说明。响应 `schema` 使用 BodyNode 类型树，不包含 `const` / `default` / `desc`；多类型观测使用类型并集，空数组使用 `items: null`，无法确定可信 body 结构时使用 `schema: null`。变体 headers 仅保留所有引用样例中键值均一致的响应头。
+6. **描述观测结构。** `request.query` / `request.body` 的参数使用 `{type, required, default, desc}`；headers 使用名称到字符串或字符串数组的映射；Cookie / Set-Cookie 仅保留在 headers 中。`default` 表示观测值；参数必填性和鉴权要求需有独立依据，证据不足时省略可选声明；`desc` 可省略，只写有依据的参数含义，不重复必填性或未知状态。响应 `schema` 使用 BodyNode 类型树，不包含 `const` / `default` / `desc`；多类型观测使用类型并集，空数组使用 `items: null`，无法确定可信 body 结构时使用 `schema: null`。变体 headers 仅保留所有引用样例中键值均一致的响应头。
 
 同一语义可以对应不同的状态码组合。例如，已确认的「条目不存在」分别表现为 HTTP 200 + `code: 1004` 和 HTTP 404 + 无业务码时，可归入同一个 `not-found`，使用 `codes: [1004]`、`http: [200, 404]`，分别引用 `200.code1004.not-found.json` 与 `404.http-only.not-found.json`。
 
@@ -50,3 +50,12 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 按共享契约格式保存。独立调用时，从 `workflow/cli` 运行 `npm run apic -- validate`；由 pipeline 调用时交由其执行校验。修复本次引入的错误，报告已有错误和警告；保留有效样例、校验规则及 CLI 生成的报告。
 
 交接内容包括变更文件与接口、分类依据、复用或新增的 slug、未导入帧及原因，以及校验结果或待运行状态。校验通过说明已导入数据通过检查；所有目标帧均已处理且无未决项时，才报告分类完成。
+
+## Capture field alignment
+
+- Include `endpoint.url` as the absolute origin plus pathname, without query or fragment. Every example must match that origin and path. Preserve `endpoint.path` for directory placement; report conflicting origins.
+- Write definition request `headers`, `query`, `body` sections with `{}` defaults. Retain headers common to all examples. Cookie and Set-Cookie values belong only in headers, including arrays for repeated fields; do not add isolated `cookies` fields anywhere in canonical files.
+- Preserve example request `headers`, `query`, `body` and response `headers`, `body`. Empty headers are `{}`, query pairs are `[]`, absent body is `null`. Retain duplicate query pairs and repeated headers.
+- Preserve `bodyMeta` for captured bodies, including empty text, and explicit uncaptured-payload evidence. Omit it when no body exists.
+- Parameter `desc` is optional. Write only a supported semantic description; otherwise omit it. Never use filler such as “Observed <name> value”, “requiredness is unknown” or “meaning not established”. Requiredness belongs only in the optional `required` field.
+- Response `status` describes the supported outcome. Keep HTTP and business codes in their own fields; do not repeat them in prose or add unknown downstream behavior.

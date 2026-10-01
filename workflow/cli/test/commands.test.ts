@@ -20,14 +20,45 @@ function fixture() {
   const input = path.join(dir, 'input.har');
   fs.writeFileSync(input, JSON.stringify({ log: { version: '1.2', entries: [{
     startedDateTime: '2026-01-01T00:00:00Z',
-    request: { method: 'POST', url: 'https://example.invalid/x', postData: {
+    time: 12.75,
+    request: { httpVersion: 'HTTP/1.1', method: 'POST', url: 'https://example.invalid/x', postData: {
       mimeType: 'application/x-www-form-urlencoded', text: 'password=synthetic-secret&q=1&q=2',
     } },
-    response: { status: 200, content: { mimeType: 'application/json', text: '{ "code": 0, "data": { "count": 2 } }' } },
+    response: { httpVersion: 'h2', status: 200, content: { mimeType: 'application/json', text: '{ "code": 0, "data": { "count": 2 } }' } },
   }] } }));
   return { dir, project, input };
 }
 describe('CLI commands with isolated fixtures', () => {
+  it('keeps cookies only in raw headers alongside repeated query pairs and explicit empty fields', async () => {
+    const { project, input } = fixture();
+    const har = JSON.parse(fs.readFileSync(input, 'utf8'));
+    const entry = har.log.entries[0];
+    entry.request.method = 'GET';
+    entry.request.url = 'https://example.invalid/x?q=one&q=two&empty=&token=secret';
+    delete entry.request.postData;
+    entry.request.headers = [{ name: 'Cookie', value: 'theme=dark; session=secret; value=a=b' }];
+    entry.response.headers = [
+      { name: 'Set-Cookie', value: 'sid=secret; Expires=Wed, 21 Oct 2026 07:28:00 GMT; Path=/; HttpOnly' },
+      { name: 'Set-Cookie', value: 'sid=other; Path=/other; Secure' },
+    ];
+    fs.writeFileSync(input, JSON.stringify(har));
+    await extractCommand().parseAsync([input], { from: 'user' });
+    const frame = parse(fs.readFileSync(path.join(project.extract, 'GET.x.yaml'), 'utf8')).endpoints[0].frames[0];
+    expect(frame.request.body).toBeNull();
+    expect(frame.request).not.toHaveProperty('bodyMeta');
+    expect(frame.request.headers.Cookie).toBe('theme=dark; session=<redacted:token>; value=a=b');
+    expect(frame.request).not.toHaveProperty('cookies');
+    expect(frame.request.query).toEqual([
+      { name: 'q', value: 'one' }, { name: 'q', value: 'two' }, { name: 'empty', value: '' }, { name: 'token', value: '<redacted:token>' },
+    ]);
+    expect(frame.response.headers['Set-Cookie']).toHaveLength(2);
+    expect(frame.response).not.toHaveProperty('cookies');
+    expect(frame.response.headers['Set-Cookie']).toEqual([
+      'sid=<redacted:token>; Expires=Wed, 21 Oct 2026 07:28:00 GMT; Path=/; HttpOnly',
+      'sid=<redacted:token>; Path=/other; Secure',
+    ]);
+    expect(JSON.stringify(frame)).not.toContain('secret');
+  });
   it('extracts sanitized metadata and repeats safely without deleting user files', async () => {
     const { project, input } = fixture();
     await extractCommand().parseAsync([input], { from: 'user' });
@@ -38,9 +69,45 @@ describe('CLI commands with isolated fixtures', () => {
     const frame = parse(output).endpoints[0].frames[0];
     expect(frame.request.body).toBe('password=%3Credacted%3Asecret%3E&q=1&q=2');
     expect(frame.request.bodyMeta.mimeType).toBe('application/x-www-form-urlencoded');
+    expect(frame.request.headers).toEqual({});
+    expect(frame.request).not.toHaveProperty('cookies');
+    expect(frame.request.query).toEqual([]);
+    expect(frame.response.headers).toEqual({});
+    expect(frame.response).not.toHaveProperty('cookies');
+    expect(frame.request.httpMeta).toEqual({ httpVersion: 'HTTP/1.1' });
+    expect(frame.response.httpMeta).toEqual({ httpVersion: 'h2', entryTime: 12.75 });
     expect(frame.response.body).toBe('{ "code": 0, "data": { "count": 2 } }');
     expect(frame.code).toBe(0);
     expect(fs.readFileSync(path.join(project.extract, 'notes.txt'), 'utf8')).toBe('handwritten');
+  });
+  it('deduplicates timing-only differences and retains the earliest capture metadata', async () => {
+    const { project, input } = fixture();
+    const har = JSON.parse(fs.readFileSync(input, 'utf8'));
+    const earlier = structuredClone(har.log.entries[0]);
+    earlier.startedDateTime = '2025-12-31T23:59:59Z';
+    earlier.time = 0;
+    har.log.entries.push(earlier);
+    fs.writeFileSync(input, JSON.stringify(har));
+    await extractCommand().parseAsync([input], { from: 'user' });
+    const frames = parse(fs.readFileSync(path.join(project.extract, 'POST.x.yaml'), 'utf8')).endpoints[0].frames;
+    expect(frames).toHaveLength(1);
+    expect(frames[0].captured).toBe(earlier.startedDateTime);
+    expect(frames[0].response.httpMeta.entryTime).toBe(0);
+    expect(JSON.parse(fs.readFileSync(path.join(project.reports, 'extract-input.json'), 'utf8')).duplicates).toBe(1);
+  });
+
+  it.each([undefined, -1])('omits unavailable transport values (time: %s)', async (time) => {
+    const { project, input } = fixture();
+    const har = JSON.parse(fs.readFileSync(input, 'utf8'));
+    const entry = har.log.entries[0];
+    delete entry.request.httpVersion;
+    entry.response.httpVersion = '';
+    entry.time = time;
+    fs.writeFileSync(input, JSON.stringify(har));
+    await extractCommand().parseAsync([input], { from: 'user' });
+    const frame = parse(fs.readFileSync(path.join(project.extract, 'POST.x.yaml'), 'utf8')).endpoints[0].frames[0];
+    expect(frame.request.httpMeta).toEqual({});
+    expect(frame.response.httpMeta).toEqual({});
   });
   it('reports no drift for a captured JSON response matching the BodyNode schema', async () => {
     const { project, input } = fixture();

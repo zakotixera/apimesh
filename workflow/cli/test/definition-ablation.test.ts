@@ -28,10 +28,12 @@ describe('definition ablations: absence, validity and consumer capability', () =
     const agentFiles = renderAgent(data);
     const entry = JSON.parse(agentFiles[0].content).apis[0];
     const agent = JSON.parse(agentFiles.find((file) => `dist/${file.path}` === entry.detailFile)!.content);
-    expect(doc).toContain(`**auth**: \`${removed === 'auth' ? 'unknown' : 'required'}\``);
+    if (removed === 'auth') expect(doc).not.toContain('**auth**');
+    else expect(doc).toContain('**auth**: `required`');
     expect(agent.auth).toBe(removed === 'auth' ? undefined : 'required');
     expect(agent.request).toEqual(def.request);
-    expect(doc).toContain(`| query | \`id\` | ${removed === 'type' ? 'unknown' : 'integer'} | ${removed === 'required' ? 'unknown' : 'yes'} |`);
+    expect(doc).not.toContain('unknown');
+    expect(doc).toContain(`| query | \`id\` | ${removed === 'type' ? '' : 'integer | '}${removed === 'required' ? '' : 'yes | '}Observed identifier |`);
     expect(def).toEqual(before);
   });
 
@@ -52,10 +54,10 @@ describe('definition ablations: absence, validity and consumer capability', () =
     def.request = { query: { q: { default: 'recorded', desc: 'Observed query' } } };
     let doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
     expect(doc).toContain('| observed value |');
-    expect(doc).toContain('_Shape unknown._');
+    expect(doc).not.toContain('response fields');
     def.responses[0].schema = { type: 'null' };
     doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
-    expect(doc).toContain('"type": "null"');
+    expect(doc).toContain('| `$` | null |');
     expect(doc).not.toContain('_Shape unknown._');
   });
 

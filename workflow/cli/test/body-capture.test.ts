@@ -41,6 +41,7 @@ describe('body capture, masking and export', () => {
     expect(request(capture('application/json', 'null')).body.raw).toBe('null');
     expect(() => request(capturePostData({ mimeType: 'text/plain' }))).toThrow('uncaptured');
     expect(capturePostData(undefined)).toEqual({ body: null });
+    expect(captureContent(undefined)).toEqual({ body: null });
   });
   it('changes only sensitive JSON spans, including nested containers', () => {
     const raw = '{ "large": 9007199254740993123, "password": "secret", "token": { "nested": "value" }, "list": [{"email":"a@example.invalid"}], "q": "a\\u0020b" }';

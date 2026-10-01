@@ -39,9 +39,10 @@ describe('template and complete workflow', () => {
     const file = path.join(dir, 'capture with spaces.har');
     const entry = (index: number, postData: object, content: object) => ({
       startedDateTime: `2026-01-01T00:00:0${index}Z`,
-      request: { method: 'POST', url: 'https://example.invalid/recorded?token=synthetic-secret', postData,
+      time: index + 0.5,
+      request: { httpVersion: 'h2', method: 'POST', url: 'https://example.invalid/recorded?token=synthetic-secret', postData,
         headers: [{ name: ':method', value: 'POST' }, { name: ':authority', value: 'example.invalid' }] },
-      response: { status: 200, content, headers: [{ name: 'content-encoding', value: index % 2 ? 'br' : 'gzip' },
+      response: { httpVersion: 'h2', status: 200, content, headers: [{ name: 'content-encoding', value: index % 2 ? 'br' : 'gzip' },
         { name: ':status', value: '200' }, { name: 'content-length', value: '12345' }] },
     });
     const har = { log: { version: '1.2', entries: [

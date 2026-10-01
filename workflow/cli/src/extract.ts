@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { queryFromUrl } from './lib/http-fields';
 import { Command } from 'commander';
 import { stringify as yamlStringify } from 'yaml';
 import { loadCollection } from './lib/canonical';
@@ -14,6 +15,8 @@ import {
   headersToMap,
   normalizeCaptured,
   parseHar,
+  requestHttpMeta,
+  responseHttpMeta,
 } from './lib/har';
 import type { HarEntry, HarLog } from './lib/har';
 import {
@@ -109,8 +112,9 @@ function buildFrame(
 ): ExtractFrame {
   const method = asHttpMethod(entry.request.method, entry.request.url);
   const status = entry.response.status;
-  const responseHeaders = headersToMap(entry.response.headers);
-  const requestHeaders = headersToMap(entry.request.headers);
+  const responseHeaders = maskHeadersSecure(headersToMap(entry.response.headers), cfg, sec) ?? {};
+  const requestHeaders = maskHeadersSecure(headersToMap(entry.request.headers), cfg, sec) ?? {};
+  const url = maskUrlSecure(entry.request.url, cfg, sec);
   const response = maskCapturedBody(captureContent(entry.response.content, headerValue(responseHeaders, 'content-type')), cfg, sec);
   const request = maskCapturedBody(capturePostData(entry.request.postData, headerValue(requestHeaders, 'content-type')), cfg, sec);
   const origin =
@@ -125,15 +129,20 @@ function buildFrame(
     ...(origin !== undefined ? { origin } : {}),
     account,
     request: {
+      httpMeta: requestHttpMeta(entry.request),
       method,
-      url: maskUrlSecure(entry.request.url, cfg, sec),
-      headers: maskHeadersSecure(requestHeaders, cfg, sec),
-      ...request,
+      url,
+      headers: requestHeaders,
+      query: queryFromUrl(url),
+      body: request.body,
+      ...(request.bodyMeta ? { bodyMeta: request.bodyMeta } : {}),
     },
     response: {
+      httpMeta: responseHttpMeta(entry),
       status,
-      headers: maskHeadersSecure(responseHeaders, cfg, sec),
-      ...response,
+      headers: responseHeaders,
+      body: response.body,
+      ...(response.bodyMeta ? { bodyMeta: response.bodyMeta } : {}),
     },
   };
 }
@@ -241,7 +250,9 @@ export function extractCommand(): Command {
         const kept: ExtractFrame[] = [];
         let duplicates = 0;
         for (const { frame } of sorted) {
-          const signature = stableStringify({ request: frame.request, response: frame.response });
+          // Timing varies between otherwise identical captures; retain the earliest observation.
+          const { entryTime: _entryTime, ...httpMeta } = frame.response.httpMeta ?? {};
+          const signature = stableStringify({ request: frame.request, response: { ...frame.response, httpMeta } });
           if (seen.has(signature)) {
             duplicates += 1;
             continue;

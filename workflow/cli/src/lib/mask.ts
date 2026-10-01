@@ -1,4 +1,4 @@
-import type { Collection } from './types';
+import type { Collection, Headers } from './types';
 
 /** Replace registered authentication values with named placeholders. Parse cookies individually, match header profiles, and recursively mask query/body fields. */
 
@@ -44,12 +44,16 @@ export function maskCookieHeader(value: string, cfg: MaskConfig): string {
 
 /** Mask cookie pairs and replace registered header values. */
 export function maskHeaders(
-  headers: Record<string, string> | undefined,
+  headers: Headers | undefined,
   cfg: MaskConfig,
-): Record<string, string> | undefined {
+): Headers | undefined {
   if (!headers) return headers;
-  const out: Record<string, string> = {};
+  const out: Headers = Object.create(null);
   for (const [name, value] of Object.entries(headers)) {
+    if (Array.isArray(value)) {
+      out[name] = value.map((v) => maskHeaders({ [name]: v }, cfg)![name] as string);
+      continue;
+    }
     if (name.toLowerCase() === 'cookie') {
       out[name] = maskCookieHeader(value, cfg);
     } else if ([...cfg.headers].some((registered) => registered.toLowerCase() === name.toLowerCase())) {

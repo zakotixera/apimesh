@@ -10,6 +10,21 @@ import { captureContent, capturePostData } from '../src/lib/har';
 const schemas = loadSchemas(projectPaths(path.resolve(import.meta.dirname, '../../..')));
 
 describe('canonical JSON schemas', () => {
+  it('accepts aligned capture fields and absolute endpoint URLs', () => {
+    const ex = example({ query: [{ name: 'q', value: '' }, { name: 'q', value: '2' }] });
+    ex.response.headers = { 'set-cookie': ['a=1; Path=/', 'b=2; Secure'] };
+    expect(schemas.example(ex)).toEqual([]);
+    const def = corpus([]).apis[0].definition;
+    def.endpoint.url = 'https://example.invalid/x';
+    def.request = { query: { q: { type: 'string', default: 'observed' } } };
+    expect(schemas.definition(def)).toEqual([]);
+    expect(schemas.definition({ ...def, request: { ...def.request, cookies: {} } }).length).toBeGreaterThan(0);
+    expect(schemas.example({ ...ex, response: { ...ex.response, cookies: [] } }).length).toBeGreaterThan(0);
+    def.endpoint.url += '?q=1';
+    expect(schemas.definition(def).length).toBeGreaterThan(0);
+    expect(schemas.example({ ...ex, request: { ...ex.request, cookies: [] } }).length).toBeGreaterThan(0);
+    expect(schemas.example({ ...ex, response: { ...ex.response, headers: { bad: [] } } }).length).toBeGreaterThan(0);
+  });
   it('accepts the collection starters', () => {
     const templates = path.resolve(import.meta.dirname, '../../templates');
     const collection = JSON.parse(fs.readFileSync(path.join(templates, 'collection.json'), 'utf8'));
@@ -58,6 +73,32 @@ describe('canonical JSON schemas', () => {
   it('rejects params-only responses', () => {
     const ex = example();
     expect(schemas.example({ ...ex, response: { status: 200, body: [], bodyMeta: { representation: 'params', source: 'params' } } }).length).toBeGreaterThan(0);
+  });
+
+  it.each(['HTTP/1.1', 'HTTP/2.0', 'h2', 'h3'])('accepts captured transport metadata (%s)', (httpVersion) => {
+    const ex = example({ httpMeta: { httpVersion } });
+    ex.response.httpMeta = { httpVersion, entryTime: 12.75 };
+    expect(schemas.example(ex)).toEqual([]);
+    ex.response.httpMeta.entryTime = 0;
+    expect(schemas.example(ex)).toEqual([]);
+    ex.request.httpMeta = {};
+    ex.response.httpMeta = {};
+    expect(schemas.example(ex)).toEqual([]);
+  });
+
+  it.each([
+    ['request', { httpVersion: 2 }],
+    ['response', { httpVersion: '' }],
+    ['request', { httpVersion: '   ' }],
+    ['request', { entryTime: 10 }],
+    ['response', { entryTime: -1 }],
+    ['response', { entryTime: '2026-01-01T00:00:00Z' }],
+    ['response', { unexpected: true }],
+    ['request', null],
+  ])('rejects invalid %s httpMeta: %j', (side, httpMeta) => {
+    const ex = example();
+    const key = side as 'request' | 'response';
+    expect(schemas.example({ ...ex, [key]: { ...ex[key], httpMeta } }).length).toBeGreaterThan(0);
   });
 
   it('allows stable recording suffixes alongside legacy names but rejects path traversal', () => {

@@ -28,6 +28,7 @@ Pipeline coordinates these responsibilities and uses classify or drift for canon
 
 - Use sanitized extraction drafts and canonical examples for semantic work. Preserve placeholders and redaction markers. Keep original credentials and other unmasked sensitive values out of canonical data and reports.
 - The canonical example schema accepts optional `bodyMeta` and checks its representation against the stored body. Preserve metadata and JSON text, including numeric literals. Missing bodies and uncaptured multipart files remain explicit; schema validity does not make them replayable. Retain such drafts as unresolved when the requested workflow requires replay.
+- Preserve `request.httpMeta` and `response.httpMeta` when copying extracted frames into examples. Each side's `httpVersion` is its captured HAR label; response `entryTime` is the HAR entry's elapsed `time` in milliseconds, not a timestamp. Missing values remain omitted; never infer them from headers, `captured`, or the replay server. Timing-only differences do not require another recording; retain the earliest capture's metadata.
 - Examples in these instructions are synthetic. Derive endpoint paths, authentication names, business codes, and meanings from the current collection and its recordings.
 - Keep API identity, semantic slugs, and existing recordings stable. Do not infer authentication requirements, parameter requiredness, or guaranteed behavior from one observation.
 - Example filenames are `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`; variant is a glossary slug. The optional recording ID is a lowercase alphanumeric/hyphen slug (for example, a digest of the sanitized frame). Keep existing filenames stable. Reuse an identical recording; give distinct recordings stable suffixes without overwriting or renumbering existing files. Every filename must be referenced by exactly one variant.
@@ -46,3 +47,11 @@ Each definition has unique variant slugs. Declared response types must accommoda
 ## Handoff
 
 Report task scope, files changed, supporting evidence, verification performed, warnings, and unresolved observations with their locations and next action. Mark partial completion explicitly. Use the response, PR description, or another user-requested destination for the handoff; `dist/` and `.reports/` remain reserved for CLI output.
+
+### Capture field alignment
+
+Captures include request `headers`, `query`, `body` and response `headers`, `body`. Empty headers use `{}`, query pairs use `[]`, and absent bodies use `null`. Cookies stay exclusively in masked Cookie/Set-Cookie headers; repeated headers use string arrays so values and attributes survive without a second cookie representation. Query pairs preserve order, duplicate names and empty values. Omit `bodyMeta` when no body exists; preserve it for captured text (including empty text) and explicit missing-capture evidence.
+
+Definitions include `endpoint.url` (absolute origin and pathname, no query/fragment), validated against each example. Request header summaries retain observations common to all recordings. Include empty request `headers`, `query` and `body` sections as `{}`. Parameter `desc` is optional: use it only for a supported meaning, never for requiredness, unknown-data disclaimers or a repetition of the parameter name.
+
+Generated docs contain endpoint identity, parameter observations, response field/type tables and recording links. Omit unknown-only columns, empty sections and repeated capture boilerplate. Raw request recipes and header dumps stay out of docs; complete captures remain in canonical files and executable requests in Postman. Agent details carry parameter definitions and response shapes, with canonical links for capture headers.

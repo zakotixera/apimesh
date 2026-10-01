@@ -1,6 +1,6 @@
 import { maskBody, maskHeaders, maskUrl, type MaskConfig } from './mask';
 import { decodeFormComponent, isJsonMime, mapMultipart, mediaType, type CapturedBody } from './body';
-import type { BodyParam } from './types';
+import type { BodyParam, Headers } from './types';
 import { jsonTokens } from './json-text';
 
 /** Apply deterministic name and value-shape rules after registered authentication masking. Redaction markers are distinct from registered placeholders. URL and cookie markers remain literal for readability. */
@@ -146,18 +146,27 @@ export function maskUrlSecure(url: string, cfg: MaskConfig, sec: SecurityMaskerC
 
 /** Apply registered header masking before name and value-shape rules. */
 export function maskHeadersSecure(
-  headers: Record<string, string> | undefined,
+  headers: Headers | undefined,
   cfg: MaskConfig,
   sec: SecurityMaskerConfig,
-): Record<string, string> | undefined {
+): Headers | undefined {
   const masked = maskHeaders(headers, cfg);
   if (!masked || !sec.enabled) return masked;
-  const out: Record<string, string> = {};
+  const out: Headers = Object.create(null);
   for (const [name, value] of Object.entries(masked)) {
+    if (Array.isArray(value)) {
+      out[name] = value.map((v) => maskHeadersSecure({ [name]: v }, cfg, sec)![name] as string);
+      continue;
+    }
     if (isPlaceholder(value)) {
       out[name] = value;
     } else if (name.toLowerCase() === 'set-cookie') {
-      out[name] = redactionMarker('token');
+      const split = value.indexOf(';');
+      const cookie = split < 0 ? value : value.slice(0, split);
+      const eq = cookie.indexOf('=');
+      const cookieName = eq < 0 ? '' : cookie.slice(0, eq).trim();
+      // Set-Cookie values remain conservatively masked; retain names and attributes.
+      out[name] = eq < 0 ? redactionMarker('token') : `${cookie.slice(0, eq + 1)}${cfg.cookies.has(cookieName) ? `{{${cookieName}}}` : redactionMarker('token')}${split < 0 ? '' : value.slice(split)}`;
     } else if (name.toLowerCase() === 'cookie') {
       out[name] = value
         .split(';')

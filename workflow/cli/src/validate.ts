@@ -1,9 +1,11 @@
 import path from 'node:path';
+import { stableStringify } from './lib/stable-json';
 import { Command } from 'commander';
 import { loadCollection, loadGlossary } from './lib/canonical';
 import { readJson, walk, writeJsonStable } from './lib/fsx';
 import { codeFromBody } from './lib/har';
 import { bodyForAnalysis } from './lib/body';
+import { queryFromUrl } from './lib/http-fields';
 import { compareBody } from './lib/body-drift';
 import { scanPlaceholders } from './lib/mask';
 import { rel, resolvePaths, type ProjectPaths } from './lib/paths';
@@ -24,8 +26,8 @@ const EXAMPLE_FILE_RE = /^([1-5][0-9]{2})\.(code-?[0-9]+|http-only)\.([a-z0-9]+(
 
 /** Request parameter sections. */
 const PARAM_SECTIONS = ['query', 'body'] as const;
-/** Observed request header and cookie values. */
-const VALUE_SECTIONS = ['headers', 'cookies'] as const;
+/** Observed request header values. */
+const VALUE_SECTIONS = ['headers'] as const;
 
 /* ------------------------------------------------------------------ */
 /** Load files while collecting read and parse errors. */
@@ -207,8 +209,17 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
         path: 'endpoint.path',
       });
     }
+    if (def.endpoint.url) {
+      try {
+        if (new URL(def.endpoint.url).pathname !== def.endpoint.path) {
+          issues.push({ severity: 'error', code: 'endpoint-url-path-mismatch', message: 'endpoint.url and endpoint.path must identify the same path', file: api.relFile });
+        }
+      } catch {
+        issues.push({ severity: 'error', code: 'endpoint-url-invalid', message: 'endpoint.url is not a valid HTTP(S) URL', file: api.relFile });
+      }
+    }
 
-    // Warn about unregistered placeholders in defaults, headers and cookies.
+    // Warn about unregistered placeholders in defaults and headers.
     for (const section of PARAM_SECTIONS) {
       const params = def.request?.[section];
       if (!params) continue;
@@ -306,13 +317,18 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
         }
         try {
           const url = new URL(ef.data.request?.url);
+          if (ef.data.request.query && stableStringify(ef.data.request.query) !== stableStringify(queryFromUrl(ef.data.request.url))) {
+            issues.push({ severity: 'error', code: 'example-query-mismatch', message: 'Request query pairs differ from the recorded URL', file: ef.relFile });
+          }
+          if (def.endpoint.url && `${url.origin}${url.pathname}` !== def.endpoint.url) {
+            issues.push({ severity: 'error', code: 'example-endpoint-url-mismatch', message: 'Example origin/path differs from definition.endpoint.url', file: ef.relFile });
+          }
           if (!['http:', 'https:'].includes(url.protocol) || url.pathname !== def.endpoint?.path) {
             issues.push({ severity: 'error', code: 'example-url-mismatch', message: 'Example must use an HTTP(S) URL with the definition endpoint pathname', file: ef.relFile });
           }
         } catch {
           issues.push({ severity: 'error', code: 'example-url-invalid', message: 'Example request URL is invalid', file: ef.relFile });
         }
-
         // Check the example filename and its HTTP/code/variant components.
         const m = EXAMPLE_FILE_RE.exec(name);
         if (!m) {
@@ -390,7 +406,7 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
             );
             if (!actual) {
               issues.push({ severity: 'error', code: 'response-header-missing', message: `Declared response header ${header} is missing from example ${name}`, file: ef.relFile });
-            } else if (actual[1] !== value) {
+            } else if (JSON.stringify(actual[1]) !== JSON.stringify(value)) {
               issues.push({ severity: 'error', code: 'response-header-value', message: `Declared response header ${header}=${value} differs from example ${name}: ${actual[1]}`, file: ef.relFile });
             }
           }

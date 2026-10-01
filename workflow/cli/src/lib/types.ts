@@ -23,23 +23,27 @@ export type ParamType =
 export interface Endpoint {
   method: HttpMethod;
   path: string;
+  /** Absolute endpoint URL without query or fragment. Optional for legacy definitions. */
+  url?: string;
 }
 
+/** Repeated header fields retain every value in capture order. */
+export type Headers = Record<string, string | string[]>;
+export interface NameValue { name: string; value: string }
 /** Parameter location is implied by its enclosing request section. */
 export interface Param {
   type?: ParamType;
   required?: boolean;
   /** A value observed in one capture, not an API-guaranteed default. */
   default?: unknown;
-  desc: string;
+  desc?: string;
 }
 
-/** Query/body sections describe parameters; headers/cookies retain observed values. */
+/** Query/body sections describe parameters; headers retain observed values. */
 export interface RequestSpec {
   query?: Record<string, Param>;
   body?: Record<string, Param>;
-  headers?: Record<string, string>;
-  cookies?: Record<string, string>;
+  headers?: Headers;
 }
 
 /** Supported response body node types. */
@@ -68,7 +72,7 @@ export interface Variant {
   codes: number[];
   http: number[];
   /** Observed public response headers; defaults to an empty object. */
-  headers?: Record<string, string>;
+  headers?: Headers;
   /** Response body type tree; null means no trustworthy shape is available. */
   schema: BodyNode | null;
   examples?: string[];
@@ -100,19 +104,32 @@ export interface BodyParam {
   contentType?: string;
 }
 
+/** Transport details as recorded by the capture; unavailable values are omitted. */
+export interface RequestHttpMetadata {
+  httpVersion?: string;
+}
+
+export interface ResponseHttpMetadata extends RequestHttpMetadata {
+  /** Total HAR entry elapsed time in milliseconds, not a timestamp. */
+  entryTime?: number;
+}
+
 /** example.request */
 export interface ExampleRequest {
+  httpMeta?: RequestHttpMetadata;
   method: HttpMethod;
   url: string;
-  headers?: Record<string, string>;
+  headers?: Headers;
+  query?: NameValue[];
   body: unknown;
   bodyMeta?: BodyMetadata;
 }
 
 /** example.response */
 export interface ExampleResponse {
+  httpMeta?: ResponseHttpMetadata;
   status: number;
-  headers?: Record<string, string>;
+  headers?: Headers;
   body: unknown;
   bodyMeta?: BodyMetadata;
 }

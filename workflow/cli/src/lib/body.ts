@@ -1,11 +1,14 @@
-import type { BodyMetadata, BodyParam, ExampleRequest, ExampleResponse } from './types';
+import type { BodyMetadata, Headers, BodyParam, ExampleRequest, ExampleResponse } from './types';
 
 export function mediaType(mime: string | undefined): string {
   return (mime ?? '').split(';', 1)[0].trim().toLowerCase();
 }
 
-export function headerValue(headers: Record<string, string> | undefined, name: string): string | undefined {
-  return Object.entries(headers ?? {}).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
+export function headerValue(headers: Headers | undefined, name: string): string | undefined {
+  const values = Object.entries(headers ?? {}).filter(([key]) => key.toLowerCase() === name.toLowerCase())
+    .flatMap(([, value]) => Array.isArray(value) ? value : [value]);
+  if (values.length === 0) return undefined;
+  return name.toLowerCase() === 'cookie' ? values.join('; ') : values.join(', ');
 }
 
 export function isJsonMime(mime: string | undefined): boolean {
@@ -68,7 +71,7 @@ export function requestMime(request: ExampleRequest): string | undefined {
 }
 
 /** Fill a missing Content-Type from capture metadata without rewriting observed headers. */
-export function responseHeaders(response: ExampleResponse): Record<string, string> {
+export function responseHeaders(response: ExampleResponse): Headers {
   const headers = { ...response.headers };
   if (headerValue(headers, 'content-type') === undefined && response.bodyMeta?.mimeType) {
     headers['content-type'] = response.bodyMeta.mimeType;

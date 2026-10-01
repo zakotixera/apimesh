@@ -60,9 +60,9 @@ describe('maskHeadersSecure', () => {
     });
   });
 
-  it('redacts set-cookie entirely', () => {
+  it('redacts set-cookie values while preserving names and attributes', () => {
     expect(maskHeadersSecure({ 'set-cookie': 'a=1; Path=/' }, cfg, sec)).toEqual({
-      'set-cookie': '<redacted:token>',
+      'set-cookie': 'a=<redacted:token>; Path=/',
     });
   });
 

@@ -25,6 +25,14 @@ export function cell(value: string): string {
     .replace(/\|/g, '&#124;').replace(/`/g, '&#96;').replace(/\r?\n/g, ' ');
 }
 
+/** Drop capture boilerplate without replacing missing semantics with speculation. */
+export function parameterDescription(desc: string | undefined): string | undefined {
+  if (!desc) return undefined;
+  const clean = desc.replace(/;\s*requiredness (?:is unknown|and server default are unknown)\.?$/i, '').trim();
+  if (/^Observed .+ value\.?$/i.test(clean) || /^(?:Meaning not established|Unknown|Not documented)\.?$/i.test(clean)) return undefined;
+  return clean || undefined;
+}
+
 /** Labels use observed event fields only; canonical filenames remain the identity. */
 export function recordingLabel(ex: LoadedExample, index: number): string {
   const body = bodyForAnalysis(ex.data.request);

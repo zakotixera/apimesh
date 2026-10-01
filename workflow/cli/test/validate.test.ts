@@ -69,6 +69,21 @@ describe('canonical structural and observation validation', () => {
     return JSON.parse(fs.readFileSync(path.join(project.reports, 'validate.json'), 'utf8'));
   }
 
+  it('checks the declared endpoint origin as well as its path', async () => {
+    const report = await validate((files) => {
+      files['apis/x/definition.json'].endpoint.url = 'https://other.invalid/x';
+    });
+    expect(report.issues.map((issue: { code: string }) => issue.code)).toContain('example-endpoint-url-mismatch');
+  });
+
+  it('compares repeated response header values structurally', async () => {
+    const report = await validate((files) => {
+      files['apis/x/definition.json'].responses[0].headers = { 'set-cookie': ['a=1', 'b=2'] };
+      files['apis/x/examples/200.code0.ok.json'].response.headers = { 'Set-Cookie': ['a=1', 'b=2'] };
+    });
+    expect(report.ok).toBe(true);
+  });
+
   it.each([null, false, 0, '', [], { responses: [null] }, { request: { query: { q: null } } }])(
     'reports malformed definitions without throwing: %j', async (value) => {
       const report = await validate((files) => {

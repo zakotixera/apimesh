@@ -15,7 +15,30 @@ function fixture() {
 }
 
 describe('artifact navigation and progressive disclosure', () => {
-  it('resolves links from deeply nested docs and preserves request bytes in a recipe', () => {
+  it('omits boilerplate, unknown columns and capture headers while retaining useful descriptions', () => {
+    const data = fixture();
+    const def = data.apis[0].definition;
+    def.request = { query: {
+      q: { default: 'one', desc: 'Observed q value; requiredness is unknown.' },
+      cursor: { default: 'next', desc: 'Pagination cursor; requiredness is unknown.' },
+      empty: {},
+    }, headers: { Cookie: 'session={{SESSION_ID}}' } };
+    def.responses[0].headers = { 'x-trace-id': 'capture-only' };
+    const page = renderDocs(data).find((f) => f.path === 'docs/nested/path/x.md')!.content;
+    expect(page).toContain('Pagination cursor');
+    expect(page).not.toMatch(/requiredness|unknown|Observed q value|session=|capture-only|recipe/);
+    expect(page).not.toContain('| required |');
+    expect(page).not.toContain('**auth**');
+    expect(page).not.toContain('Full values');
+    const files = renderAgent(data);
+    const detail = JSON.parse(files.find((f) => f.path.startsWith('agent/endpoints/'))!.content);
+    expect(detail.request.query.q).toEqual({ default: 'one' });
+    expect(detail.request.query.cursor.desc).toBe('Pagination cursor');
+    expect(detail.request.headers).toBeUndefined();
+    expect(detail.variants[0].headers).toBeUndefined();
+    expect(def.request.query!.q.desc).toContain('requiredness');
+  });
+  it('resolves evidence links without duplicating raw requests', () => {
     const data = fixture();
     const files = renderDocs(data);
     const page = files.find((f) => f.path === 'docs/nested/path/x.md')!;
@@ -25,11 +48,12 @@ describe('artifact navigation and progressive disclosure', () => {
     expect(targets).toContain('dist/docs/usage.md');
     expect(targets).toContain('apis/nested/path/x/definition.json');
     expect(targets).toContain('apis/nested/path/x/examples/0.json');
-    expect(page.content).toContain(data.apis[0].examples[0].data.request.body);
-    expect(page.content).toContain('content-type: application/json');
+    expect(page.content).not.toContain(data.apis[0].examples[0].data.request.body);
+    expect(page.content).not.toContain('content-type: application/json');
+    expect(page.content).not.toContain('recipe');
     expect(page.content).toContain('**origins**: `https://example.invalid`');
     expect(page.content).toContain('[View full value](#observed-parameter-values)');
-    expect(page.content).toContain('<summary>Full ok response shape</summary>');
+    expect(page.content).toContain('<summary>ok response fields</summary>');
     expect(page.content).toContain('x'.repeat(200));
   });
   it('keeps schemas and request details out of discovery but reachable in endpoint files', () => {

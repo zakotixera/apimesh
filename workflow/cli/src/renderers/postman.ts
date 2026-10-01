@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { GeneratedFile } from '../lib/types';
+import type { GeneratedFile, Headers } from '../lib/types';
 import type { LoadedCorpus, LoadedExample } from '../lib/canonical';
 import type { Collection, Definition, Example, ExampleResponse, Variant } from '../lib/types';
 import { compareCodepoint } from '../lib/stable-json';
@@ -130,10 +130,13 @@ interface PostmanFolder {
 }
 
 /** Convert headers to Postman entries in deterministic key order. */
-function toHeaders(headers: Record<string, string> | undefined): PostmanHeader[] {
+function toHeaders(headers: Headers | undefined): PostmanHeader[] {
   return Object.keys(headers ?? {})
     .sort(compareCodepoint)
-    .map((key) => ({ key, value: (headers as Record<string, string>)[key], type: 'text' }));
+    .flatMap((key) => {
+      const value = headers![key];
+      return (Array.isArray(value) ? value : [value]).map((v) => ({ key, value: v, type: 'text' }));
+    });
 }
 
 /** Preserve captured query order and encoding in Postman URL entries. */
@@ -170,6 +173,13 @@ function toRequest(ex: Example, baseVariable: string): PostmanRequest {
     header: toHeaders(ex.request.headers).filter((h) => !h.key.startsWith(':') && !['content-length', 'host', 'transfer-encoding'].includes(h.key.toLowerCase())),
     url: toPostmanUrl(ex.request.url, baseVariable),
   };
+  // HTTP/2 captures may split Cookie over many fields. Send one HTTP/1 field;
+  // otherwise Postman can overwrite earlier cookies instead of joining them.
+  const cookie = headerValue(ex.request.headers, 'cookie');
+  if (cookie !== undefined) {
+    request.header = request.header.filter((h) => h.key.toLowerCase() !== 'cookie');
+    request.header.push({ key: 'Cookie', value: cookie, type: 'text' });
+  }
   if (ex.request.bodyMeta?.representation === 'params' && mediaType(mime) === 'multipart/form-data') {
     const params = ex.request.body as BodyParam[];
     request.body = { mode: 'formdata', formdata: params.map((param) => {
@@ -237,7 +247,7 @@ function toRequestItem(
   sourcePath: string,
 ): PostmanRequestItem {
   const request = toRequest(ex.data, baseVariable);
-  request.description = `${variant.status}\n\nCaptured origin: ${new URL(ex.data.request.url).origin}\n\nCanonical recording: ${sourcePath}\n\nSelect the local replay environment for recorded behavior. Masked placeholders stay unchanged during replay; for live use, supply your own values in a separate environment. Requiredness and authentication requirements are not inferred from this capture.`;
+  request.description = `${variant.status}\n\nRecording: ${sourcePath}`;
   const recording = encodeURIComponent(`${definition.api}:${ex.name}`);
   const savedHeaders = responseHeaders(ex.data.response);
   const savedMime = headerValue(savedHeaders, 'content-type');
@@ -321,7 +331,7 @@ export function renderPostman(corpus: LoadedCorpus): GeneratedFile[] {
       _postman_id: deterministicGuid(collection.name),
       name: collection.name,
       schema: POSTMAN_SCHEMA,
-      description: 'Recorded requests with per-origin base URLs. For local replay, run npm run apic -- serve from workflow/cli and select the imported local replay environment. For live use, use a separate environment with apicReplay disabled and supply your own masked values. See ../docs/usage.md for setup and placeholder guidance.',
+      description: 'Select the replay environment for local recordings. For live requests, set apicReplay=false and supply your own values. Setup: ../docs/usage.md.',
     },
     item: folders,
     variable: [...baseVariables].map(([origin, key]) => ({ key, value: origin, type: 'string' })),

@@ -78,6 +78,7 @@ describe('strict replay matching', () => {
     redirect.response = { status: 302, headers: { location: '/must-not-follow' }, body: null };
     const examples = [
       example(), example(),
+      example({ headers: { 'content-type': 'application/json', cookie: ['theme=dark', 'session=<redacted:token>'], Cookie: 'empty=' } }),
       example({ url: 'https://second.example.invalid/x?a=3', body: { token: '{{token}}' } }),
       example({ headers: {}, ...capturePostData({ mimeType: 'application/x-www-form-urlencoded', text: 'q=a+b&q=c' }) }),
       example({ headers: {}, ...capturePostData({ mimeType: 'text/plain', text: 'hello\nworld' }) }),

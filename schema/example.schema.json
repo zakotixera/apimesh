@@ -47,6 +47,15 @@
         "body"
       ],
       "properties": {
+        "httpMeta": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpVersion": {
+              "$ref": "#/$defs/httpVersion"
+            }
+          }
+        },
         "method": {
           "type": "string",
           "enum": [
@@ -65,10 +74,7 @@
           "pattern": "^https?://[^/?#\\s]+(?:[/?#][^\\s]*)?$"
         },
         "headers": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/headers"
         },
         "body": {
           "type": [
@@ -82,6 +88,14 @@
         },
         "bodyMeta": {
           "$ref": "#/$defs/bodyMetadata"
+        },
+        "query": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/nameValue"
+          },
+          "description": "Decoded URL query pairs in capture order, preserving duplicates and empty values."
         }
       },
       "allOf": [
@@ -101,16 +115,27 @@
         "body"
       ],
       "properties": {
+        "httpMeta": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpVersion": {
+              "$ref": "#/$defs/httpVersion"
+            },
+            "entryTime": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Total HAR entry elapsed time in milliseconds (entry.time), not a timestamp. Omitted when unavailable."
+            }
+          }
+        },
         "status": {
           "type": "integer",
           "minimum": 100,
           "maximum": 599
         },
         "headers": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/headers"
         },
         "body": {
           "type": [
@@ -143,6 +168,11 @@
     }
   },
   "$defs": {
+    "httpVersion": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "HTTP version label as captured, such as HTTP/1.1, HTTP/2.0, h2 or h3. Omitted when unavailable."
+    },
     "bodyMetadata": {
       "type": "object",
       "additionalProperties": false,
@@ -368,6 +398,41 @@
           }
         }
       ]
+    },
+    "headers": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "description": "Captured header values, including Cookie and Set-Cookie, after masking. Repeated fields use arrays in capture order."
+    },
+    "nameValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
     }
   }
 }

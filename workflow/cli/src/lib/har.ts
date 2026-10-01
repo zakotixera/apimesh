@@ -1,4 +1,4 @@
-import type { BodyParam } from './types';
+import type { BodyParam, Headers, RequestHttpMetadata, ResponseHttpMetadata } from './types';
 import { type CapturedBody, isJsonMime, mediaType } from './body';
 
 /** HAR 1.2 parsing and normalization. Security masking is applied separately. */
@@ -21,6 +21,7 @@ export interface HarContent {
 }
 
 export interface HarRequest {
+  httpVersion?: string;
   method: string;
   url: string;
   headers?: HarHeader[];
@@ -28,6 +29,7 @@ export interface HarRequest {
 }
 
 export interface HarResponse {
+  httpVersion?: string;
   status: number;
   headers?: HarHeader[];
   content?: HarContent;
@@ -35,6 +37,7 @@ export interface HarResponse {
 
 export interface HarEntry {
   startedDateTime: string;
+  time?: number;
   request: HarRequest;
   response: HarResponse;
   /** Optional DevTools capture-origin extension, such as web or app. */
@@ -57,11 +60,30 @@ export function parseHar(raw: unknown): HarLog {
   return doc;
 }
 
-/** Convert headers to a name/value map; later duplicate names replace earlier values. */
-export function headersToMap(headers: HarHeader[] | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
+/** Preserve recorded protocol labels (including h2/h3); omit unavailable values. */
+export function requestHttpMeta(request: HarRequest): RequestHttpMetadata {
+  return typeof request.httpVersion === 'string' && request.httpVersion.trim().length > 0
+    ? { httpVersion: request.httpVersion } : {};
+}
+
+export function responseHttpMeta(entry: HarEntry): ResponseHttpMetadata {
+  return {
+    ...(typeof entry.response.httpVersion === 'string' && entry.response.httpVersion.trim().length > 0
+      ? { httpVersion: entry.response.httpVersion } : {}),
+    ...(typeof entry.time === 'number' && Number.isFinite(entry.time) && entry.time >= 0
+      ? { entryTime: entry.time } : {}),
+  };
+}
+
+/** Preserve repeated header values instead of overwriting earlier observations. */
+export function headersToMap(headers: HarHeader[] | undefined): Headers {
+  const out: Headers = Object.create(null);
   for (const h of headers ?? []) {
-    if (h && typeof h.name === 'string') out[h.name] = h.value ?? '';
+    if (h && typeof h.name === 'string') {
+      const previous = out[h.name];
+      const value = h.value ?? '';
+      out[h.name] = previous === undefined ? value : [...(Array.isArray(previous) ? previous : [previous]), value];
+    }
   }
   return out;
 }

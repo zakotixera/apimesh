@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { queryFromUrl } from './lib/http-fields';
 import { Command } from 'commander';
 import { loadCorpus, type LoadedApi } from './lib/canonical';
 import { exists, readJson, writeJsonStable } from './lib/fsx';
@@ -9,6 +10,8 @@ import {
   headersToMap,
   normalizeCaptured,
   parseHar,
+  requestHttpMeta,
+  responseHttpMeta,
   type HarEntry,
   type HarLog,
 } from './lib/har';
@@ -95,8 +98,9 @@ function buildFrame(
 ): ExtractFrame {
   const method = asHttpMethod(entry.request.method, entry.request.url);
   const status = entry.response.status;
-  const responseHeaders = headersToMap(entry.response.headers);
-  const requestHeaders = headersToMap(entry.request.headers);
+  const responseHeaders = maskHeadersSecure(headersToMap(entry.response.headers), cfg, sec) ?? {};
+  const requestHeaders = maskHeadersSecure(headersToMap(entry.request.headers), cfg, sec) ?? {};
+  const url = maskUrlSecure(entry.request.url, cfg, sec);
   const response = maskCapturedBody(captureContent(entry.response.content, headerValue(responseHeaders, 'content-type')), cfg, sec);
   const request = maskCapturedBody(capturePostData(entry.request.postData, headerValue(requestHeaders, 'content-type')), cfg, sec);
   const origin =
@@ -110,15 +114,20 @@ function buildFrame(
     ...(origin !== undefined ? { origin } : {}),
     account: 'anonymous',
     request: {
+      httpMeta: requestHttpMeta(entry.request),
       method,
-      url: maskUrlSecure(entry.request.url, cfg, sec),
-      headers: maskHeadersSecure(requestHeaders, cfg, sec),
-      ...request,
+      url,
+      headers: requestHeaders,
+      query: queryFromUrl(url),
+      body: request.body,
+      ...(request.bodyMeta ? { bodyMeta: request.bodyMeta } : {}),
     },
     response: {
+      httpMeta: responseHttpMeta(entry),
       status,
-      headers: maskHeadersSecure(responseHeaders, cfg, sec),
-      ...response,
+      headers: responseHeaders,
+      body: response.body,
+      ...(response.bodyMeta ? { bodyMeta: response.bodyMeta } : {}),
     },
   };
 }
@@ -157,7 +166,8 @@ function classifyFrame(
   const api = apis.find(
     (a) =>
       a.definition.endpoint.method === frame.request.method &&
-      a.definition.endpoint.path === requestPath,
+      a.definition.endpoint.path === requestPath &&
+      (!a.definition.endpoint.url || a.definition.endpoint.url === `${new URL(frame.request.url).origin}${requestPath}`),
   );
   if (!api) {
     return [
