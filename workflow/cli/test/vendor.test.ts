@@ -84,6 +84,7 @@ describe('vendored and external toolchains', () => {
       .toEqual(JSON.parse(fs.readFileSync(path.join(installed, 'schema/example.schema.json'), 'utf8')));
     run('--root', '.', 'drift', 'sources/capture with spaces.har');
     run('--root', '.', 'test');
+    run('--root', '.', 'verify', '--no-strict');
 
     // Explicit roots from unrelated directories must work; relative inputs/outputs stay caller-relative.
     check(invoke(installed, base, ['--root', root, 'extract', path.relative(base, path.join(root, 'sources/capture with spaces.har')), '--out', 'custom drafts']));

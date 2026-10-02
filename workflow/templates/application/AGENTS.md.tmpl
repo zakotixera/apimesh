@@ -1,0 +1,11 @@
+# Collection maintenance
+
+This repository owns collection metadata, source recordings, canonical APIs and generated artifacts. The pinned toolchain lives at `__APIMESH_VENDOR__/`; change reusable tooling upstream.
+
+- Follow `__APIMESH_VENDOR__/workflow/skills/pipeline/SKILL.md` for imports and `classify/SKILL.md` in the same skills directory for semantic classification.
+- Run commands from this application root. `npm run extract` processes all direct HAR files in `sources/`; use `npm run extract -- "sources/capture.har"` for an explicit batch. Each extraction replaces its managed draft set.
+- Keep original HARs unchanged. `sources/`, `.raw/` and `.reports/` are ignored. Review application-specific masking needs; default extraction is not a complete privacy audit. Keep custom preprocessing in the application.
+- Maintain evidence in `apis/<host>/<path>/`. Preserve body text, metadata, unknown meanings and existing identifiers. Do not infer success from HTTP status alone.
+- After canonical changes, run `npm run verify`. It validates strictly, renders twice, compares paths and bytes, and replays all canonical recordings locally. Use `-- --no-strict` only when reviewed warnings are acceptable.
+- Commit reviewed metadata, canonical data, package/Git/CI files, vendor pin and generated root `dist/`. CI uses `npm run verify -- --committed` to check synchronization with HEAD.
+- Report actual inputs, accepted/unresolved observations, checks and limitations after an import. Do not treat initialization or passing checks on a subset as complete source coverage.

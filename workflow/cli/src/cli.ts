@@ -6,6 +6,8 @@ import { renderCommand } from './render';
 import { driftCommand } from './drift';
 import { testCommand } from './test';
 import { serveCommand } from './serve';
+import { initCommand } from './init';
+import { verifyCommand } from './verify';
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -16,6 +18,8 @@ async function main(): Promise<void> {
     .version('0.1.0');
 
   program.addCommand(extractCommand());
+  program.addCommand(initCommand());
+  program.addCommand(verifyCommand());
   program.addCommand(validateCommand());
   program.addCommand(renderCommand());
   program.addCommand(driftCommand());

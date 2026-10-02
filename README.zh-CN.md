@@ -87,7 +87,15 @@ npm run typecheck
 npm test
 ```
 
-应用安装并构建其固定版本后，从应用根目录运行：
+应用安装固定版本的工具链后，从应用根目录初始化：
+
+```sh
+npm --prefix vendor/apimesh/workflow/cli run init -- --root . --name "My API collection"
+```
+
+该命令构建 CLI，并创建缺失的元数据、npm scripts、Git 默认规则、CI 和维护说明；已有文件保持原样。加 `--dry-run` 可预览应用文件变化。把 HAR 放入默认忽略的 `sources/`，运行 `npm run extract`，完成草稿分类后运行 `npm run verify`，统一完成严格校验、两次渲染稳定性检查及本地回放。CI 使用 `npm run verify -- --committed` 检查产物与 HEAD 一致。初始化不会创建已完成的导入报告。详见[中文操作指南](DEVELOPMENT.zh-CN.md)。
+
+也可从应用根目录分别调用各命令：
 
 ```sh
 node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
@@ -115,7 +123,7 @@ CI 验证临时合成集合和 vendoring 集成，无需真实应用数据。可
 |---|---|
 | `workflow/skills/` | 语义工作与流程编排 |
 | `workflow/cli/` | TypeScript CLI、渲染器、回放服务与测试 |
-| `workflow/templates/` | 经过 schema 校验的空集合元数据 |
+| `workflow/templates/` | 经过 schema 校验的空集合元数据和应用初始化模板 |
 | `schema/` | 规范数据 JSON Schema |
 | `ARCHITECTURE.md` | 应用集合布局、产物契约和职责边界 |
 | `workflow/cli/dist/` | 编译后的 CLI |

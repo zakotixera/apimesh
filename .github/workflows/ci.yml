@@ -44,11 +44,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and typecheck CLI
-        run: npm run build
-
-      - name: CLI and vendor workflow tests (vitest)
-        run: npm exec -- vitest run --passWithNoTests=false
+      - name: Build and run CLI and vendor workflow tests
+        run: npm test
 
   # Preserve one stable required check regardless of the runtime matrix.
   gate:
@@ -57,12 +54,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check out gate script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
       - name: Require every runtime to pass
-        working-directory: ${{ github.workspace }}
         env:
-          CHECKS_RESULT: ${{ needs.checks.result }}
-        run: |
-          if [[ "$CHECKS_RESULT" != "success" ]]; then
-            echo "::error::CI checks did not all pass ($CHECKS_RESULT)."
-            exit 1
-          fi
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci.cjs gate

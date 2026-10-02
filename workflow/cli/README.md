@@ -28,14 +28,22 @@ Optional `npm link` exposes `apic`. `npm run apic -- <command>` works inside the
 
 | Command | Responsibility |
 |---|---|
-| `extract <har...>` | Mask and group HAR captures into `.raw/` drafts |
+| `init [--name <name>] [--dry-run]` | Create missing application setup files, preserving existing files |
+| `extract [har...]` | Mask explicit HARs, or sorted direct HARs in collection `sources/`, into `.raw/` drafts |
 | `validate` | Check canonical schemas and cross-references |
 | `render` | Generate docs, agent, and Postman artifacts; defaults to all |
 | `drift <har...>` | Compare captures with canonical definitions; write an advisory report |
 | `test` | Check generated Postman requests against local recordings |
+| `verify [--committed] [--no-strict]` | Strictly validate, render twice, compare paths/bytes, and replay; optionally enforce synchronization with HEAD |
 | `serve [--port <port>]` | Keep a local replay server running for interactive Postman use (default: 4010) |
 
 Use `<command> --help` for options. Input paths and explicit `--out` paths resolve from the current directory; default outputs resolve from the selected collection root. With direct invocation from the application root, use `sources/capture.har`. `--root` does not change the working directory.
+
+`init` is the exception to metadata discovery: it targets `--root` or the current directory and accepts a directory without metadata. It creates collection/glossary starters, package scripts, Git defaults, CI, README, agent instructions and `sources/`. It rejects destinations inside the executing toolchain and linked output paths. Existing files are preserved without merging; reconcile them with `workflow/templates/application/` explicitly. An external toolchain initializes scripts for `vendor/apimesh`; a nested installation uses its own relative location. `--name` only affects a new collection file. `--dry-run` writes no application files. No Git, network, dependency installation or classification is performed by the CLI initializer.
+
+The npm convenience command `npm --prefix vendor/apimesh/workflow/cli run init -- --root . --name "My APIs"` builds first, then restores `INIT_CWD` before resolving arguments. This special wrapper makes the proposed bootstrap command work from the application root; it does not change other npm scripts' working-directory behavior. Even a dry run through npm builds the toolchain first.
+
+`verify` fails on warnings by default (`--no-strict` permits warnings), stops at the first failed stage, and writes `.reports/verify.json` with actual results. It rejects linked output paths, compares all `dist/` filenames and bytes, and passes `--timeout` to local replay. Empty collections fail replay. `--committed` requires a Git commit and checks staged, modified, deleted, untracked and ignored outputs before regeneration and after each render. Use ordinary verification while preparing local changes; commit reviewed outputs before enforcing synchronization. Reports describe verification of canonical recordings, not completeness or privacy of a HAR import. Rendering retains its normal replacement behavior.
 
 ## Output boundaries
 
@@ -60,6 +68,8 @@ Replay requires matching recorded requests and exercising every canonical record
 ## Verification
 
 Run `npm run typecheck` and `npm run test:local` for focused CLI checks with synthetic fixtures. `npm test` builds the CLI first and also checks the shared schema contract, starter templates, complete workflow, collection root selection, and vendor isolation. Neither suite depends on application-specific endpoints or recordings. Both fail on empty suites.
+
+GitHub workflows use Ubuntu runners and Bash. They own events, permissions, concurrency, the Node matrix, installation, and command invocation. `npm test` delegates to `scripts/ci.cjs check`, which runs the pinned compiler and Vitest in order and stops on any failed or interrupted process. `scripts/ci.cjs gate` consumes `CI_NEEDS` as JSON and requires every upstream job to report success, including rejecting skipped or cancelled jobs; it requires no installed dependencies. The stable `gate` job runs even when the matrix fails. `test/ci.test.ts` covers these process and result boundaries and checks both workflow contracts. Collection CI delegates verification to `apic verify` through the generated package scripts.
 
 For a local capture compatibility check, run `npm run test:har -- "/absolute/path/to/capture.har"`. It creates a temporary collection from the empty starter templates, adds test-only origins and vocabulary, preserves all extracted recordings with stable filename suffixes, validates, compares extraction/render snapshots, replays every recording, independently checks capture fidelity, and checks baseline drift. It removes the temporary collection afterward and reports aggregate counts without capture values. This checks processing compatibility, not semantic classification; it does not import into `apis/` or modify source HAR files. Unsupported captures fail explicitly.
 

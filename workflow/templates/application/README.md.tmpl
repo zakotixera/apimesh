@@ -1,0 +1,40 @@
+# API collection
+
+This application owns its recorded API evidence and generated references. The pinned apimesh toolchain lives at `__APIMESH_VENDOR__/`.
+
+## Setup and import
+
+Requires Git, Node.js 20+ and npm. After cloning with submodules:
+
+```sh
+git submodule update --init --recursive
+npm run setup
+```
+
+Set the display name, observed origins and credential field names in `collection.json`. Keep glossary terms evidence-based. Put private HAR recordings in ignored `sources/`, then run:
+
+```sh
+npm run extract
+```
+
+This processes every direct `.har` file in `sources/` as one sorted batch. To select a batch explicitly, use `npm run extract -- "sources/capture.har"`. Inputs are unchanged; masked drafts go to `.raw/`. Inspect application-specific privacy needs before publishing canonical examples. Custom sanitization belongs in this application; the default masker does not guarantee coverage of every private field or embedded payload.
+
+Follow `__APIMESH_VENDOR__/workflow/skills/classify/SKILL.md` to maintain canonical definitions and examples in `apis/`. Classification requires interpretation; it is not a CLI subcommand. Then run:
+
+```sh
+npm run verify
+```
+
+Verification validates strictly, renders twice, compares all output paths and bytes, and checks local replay. It writes actual results to `.reports/verify.json`. No recordings means replay fails; a freshly initialized repository has not completed an import. After an import, record source scope, unresolved frames and actual check results in your review handoff; no completed import report is supplied by initialization.
+
+## Outputs and review
+
+- Documentation: `dist/docs/summary.md`
+- Agent references: `dist/agent/index.json`
+- Postman: `dist/postman/endpoints.postman_collection.json` and `replay.postman_environment.json`
+- Interactive replay: `npm run serve`
+- Other commands: `npm run apic -- --help`
+
+Commit reviewed metadata, canonical data, generated root `dist/`, setup files and the vendor pin. Originals in `sources/`, drafts and reports are ignored by default. CI runs `npm run verify -- --committed`; it requires a commit and clean generated output before and after rendering, including staged and untracked changes. It does not need private HAR files and does not call live APIs.
+
+To upgrade apimesh, select a reviewed vendor commit, run `npm run setup` and `npm run verify`, then review and commit the pin and regenerated artifacts together. Repeating `apic init` only creates missing files; reconcile existing setup files with upstream templates explicitly.

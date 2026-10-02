@@ -4,15 +4,15 @@
 
 `apimesh-bilishow` 保存业务数据；`vendor/apimesh` 保存固定版本的工具链。业务录制和接口定义都放在应用根目录，不放进 vendor。
 
-下面的命令使用 **PowerShell**。准备好 Git、Node.js **20 或更新版本**及 npm；安装完成后，除非特别说明，所有命令都在 `apimesh-bilishow` 根目录运行。一条命令报错时，先解决错误再继续。
+下面的命令默认使用 **Bash**；GitHub Actions 使用 **Ubuntu**。准备好 Git、Node.js **20 或更新版本**及 npm；安装完成后，除非特别说明，所有命令都在 `apimesh-bilishow` 根目录运行。一条命令报错时，先解决错误再继续。
 
-**版本前提：** 本文需要支持 `--root` 的 apimesh 版本。submodule 只能引用已提交的版本，不能带入另一个工作区尚未提交的修改。先确认 vendoring 改动已提交并可从远程获取，再选择包含这些改动的提交。第 2 步会检查 CLI 是否支持 `--root`。
+**版本前提：** 本文需要支持 `init`、`verify` 和 `--root` 的 apimesh 版本。submodule 只能引用已提交的版本，不能带入另一个工作区尚未提交的修改。先确认相关改动已提交并可从远程获取，再选择包含这些改动的提交。第 2 步会检查 CLI 命令。
 
 ## 1. 建立仓库，加入 submodule
 
 如果已经有空的 `apimesh-bilishow` 仓库，直接进入它，跳过创建目录和 `git init`：
 
-```powershell
+```bash
 mkdir apimesh-bilishow
 cd apimesh-bilishow
 git init -b main
@@ -20,7 +20,7 @@ git init -b main
 
 把 apimesh 加为子模块：
 
-```powershell
+```bash
 git submodule add https://github.com/ZakoTixera/apimesh.git vendor/apimesh
 git submodule status
 ```
@@ -29,41 +29,43 @@ git submodule status
 
 如果 vendoring 改动还没进入默认分支，先获取上游提交，再切换到包含改动的版本。把下面变量的内容替换为实际提交号：
 
-```powershell
-$apimeshRevision = '替换为包含 vendoring 改动的提交号'
+```bash
+apimesh_revision='替换为包含 vendoring 改动的提交号'
 git -C vendor/apimesh fetch origin
-git -C vendor/apimesh checkout $apimeshRevision
+git -C vendor/apimesh checkout "$apimesh_revision"
 ```
 
 如果 `.gitmodules` 已经记录了 apimesh，就不要再次执行 `submodule add`，使用：
 
-```powershell
+```bash
 git submodule update --init --recursive
 ```
 
 ## 2. 安装并构建工具链
 
-```powershell
+```bash
 npm --prefix vendor/apimesh/workflow/cli ci
 npm --prefix vendor/apimesh/workflow/cli run build
 node vendor/apimesh/workflow/cli/dist/cli.js --help
 ```
 
-帮助中应包含 `--root <directory>`，以及 `extract`、`validate`、`render`、`drift`、`test`、`serve`。如果没有 `--root`，检查子模块是否选中了正确版本，并重新构建。
+帮助中应包含 `--root <directory>`，以及 `init`、`verify`、`extract`、`validate`、`render`、`drift`、`test`、`serve`。如果缺少命令，检查子模块是否选中了正确版本，并重新构建。
 
 安装和构建只需在首次使用或升级工具链后执行。之后修改业务数据时，直接调用编译好的 CLI 即可。
 
 ## 3. 初始化业务集合
 
-当前没有 `apic init` 命令。首次建立集合时，把两个模板复制到应用根目录：
+从应用根目录运行初始化命令：
 
-```powershell
-Copy-Item vendor/apimesh/workflow/templates/collection.json collection.json
-Copy-Item vendor/apimesh/workflow/templates/glossary.json glossary.json
-New-Item -ItemType Directory -Path sources -Force | Out-Null
+```bash
+npm --prefix vendor/apimesh/workflow/cli run init -- --root . --name "Bilishow API collection"
 ```
 
-已有这两个文件时，直接编辑，别用模板覆盖已维护的数据。
+这条 npm 命令先构建工具链，再恢复到你调用 npm 时的目录，因此 `--root .` 指向应用根目录。已构建时也可直接运行 `node vendor/apimesh/workflow/cli/dist/cli.js --root . init --name "Bilishow API collection"`。
+
+初始化会创建缺失的 `collection.json`、`glossary.json`、`package.json`、`.gitignore`、`.gitattributes`、`.github/workflows/verify.yml`、`AGENTS.md`、`README.md` 和 `sources/`。重复运行不会覆盖或自动合并已有文件；输出中的 `preserve` 表示需要自行核对相应模板。加上 `--dry-run` 可预览应用文件变化（npm 入口仍会先构建工具链）。
+
+通用逻辑直接使用 vendor 中的 CLI，不再为每个应用复制 `scripts/verify.cjs`。业务专属脱敏仍由应用维护。初始化不创建接口，也不生成声称已经完成导入的 `IMPORT.md`；导入报告应在实际执行后记录输入、未决项和检查结果。
 
 将根目录的 `collection.json` 改成：
 
@@ -96,12 +98,13 @@ New-Item -ItemType Directory -Path sources -Force | Out-Null
 
 它保存响应的语义词汇，由后面的分类步骤根据证据补充。无需提前填好所有成功、失败类别。
 
-在根目录 `.gitignore` 中加入以下内容；已有文件时合并进去：
+初始化生成的 `.gitignore` 包含以下内容；已有文件会保留，请核对并合并需要的规则：
 
 ```gitignore
 .raw/
 .reports/
 node_modules/
+/sources/
 vendor/apimesh/workflow/cli/dist/
 ```
 
@@ -109,7 +112,7 @@ vendor/apimesh/workflow/cli/dist/
 
 检查初始化是否有效：
 
-```powershell
+```bash
 node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
 ```
 
@@ -127,17 +130,21 @@ sources/
 
 这些名字仅用于示范，不代表已经有对应文件。后续命令要换成你的真实文件名。
 
-HAR 可能带有 Cookie、令牌和个人数据。保留私有原始录制时，可放在仓库外；`sources/` 只提交经过检查、适合共享的录制。CLI 抽取会生成脱敏副本，**不会修改原始 HAR**。
+HAR 可能带有 Cookie、令牌和个人数据。`sources/` 默认被忽略，可保存本地原始录制；只有明确审阅并决定共享时，才调整忽略规则。CLI 抽取会生成脱敏副本，**不会修改原始 HAR**。业务特有字段或嵌套字符串仍需审阅脱敏效果。
 
 可以用下面的命令只查看这些 HAR 中出现的 origin，帮助填写 `bases`：
 
-```powershell
-Get-ChildItem -LiteralPath sources -Filter '*.har' -File | ForEach-Object {
-  $capture = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
-  $capture.log.entries | ForEach-Object {
-    ([Uri]$_.request.url).GetLeftPart([UriPartial]::Authority)
-  }
-} | Sort-Object -Unique
+```bash
+node <<'NODE'
+const fs = require('node:fs');
+const origins = new Set();
+for (const entry of fs.readdirSync('sources', { withFileTypes: true })) {
+  if (!entry.isFile() || !/\.har$/i.test(entry.name)) continue;
+  const capture = JSON.parse(fs.readFileSync(`sources/${entry.name}`, 'utf8').replace(/^\uFEFF/, ''));
+  for (const frame of capture.log.entries) origins.add(new URL(frame.request.url).origin);
+}
+console.log([...origins].sort().join('\n'));
+NODE
 ```
 
 录制可能还包含图片、统计和其他无关请求。根据实际业务范围选择需要维护的 API，不必把每个主机都当成目标接口。
@@ -148,7 +155,7 @@ Get-ChildItem -LiteralPath sources -Filter '*.har' -File | ForEach-Object {
 
 把本次需要处理的 HAR **一次性**传给 `extract`：
 
-```powershell
+```bash
 node vendor/apimesh/workflow/cli/dist/cli.js --root . extract "sources/bilishow-project-list-2026-10-02.har" "sources/bilishow-project-detail-2026-10-02.har" --account recording-a
 ```
 
@@ -170,13 +177,15 @@ node vendor/apimesh/workflow/cli/dist/cli.js --root . extract "sources/bilishow-
 
 如果草稿已经被编辑，或工具提示输出文件不归它管理，保留原文件，换一个新目录：
 
-```powershell
+```bash
 node vendor/apimesh/workflow/cli/dist/cli.js --root . extract "sources/bilishow-project-list-2026-10-02.har" --account recording-a --out .raw/import-02
 ```
 
 后面的分类步骤也要明确使用 `.raw/import-02/`。`--out` 和 HAR 路径都相对于当前工作目录；本文一直从应用根目录运行。
 
 ## 6. 让 Agent 整理为正式接口数据
+
+如果本次范围是 `sources/` 下的全部直接 HAR 文件，也可用 `npm run extract` 完成上一节的抽取；它按文件名排序后作为一个批次处理，不递归子目录。选择部分文件时使用 `npm run extract -- "sources/实际文件.har"`，没有可用文件时会报错并保留已有草稿。
 
 分类需要理解录制证据，由 Agent 按 skill 执行，也可以人工按相同规则维护。**没有 `apic classify` 命令。**
 
@@ -210,12 +219,10 @@ apis/
 
 ## 7. 校验、生成文档、回放
 
-分类完成后，按顺序运行。上一条成功后再继续：
+分类完成后，运行统一验证：
 
-```powershell
-node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
-node vendor/apimesh/workflow/cli/dist/cli.js --root . render --all
-node vendor/apimesh/workflow/cli/dist/cli.js --root . test
+```bash
+npm run verify
 ```
 
 | 命令 | 检查或生成什么 |
@@ -224,9 +231,9 @@ node vendor/apimesh/workflow/cli/dist/cli.js --root . test
 | `render --all` | 生成根目录 `dist/docs/`、`dist/agent/`、`dist/postman/` |
 | `test` | 启动临时本地服务，用 Newman 检查生成请求与录制记录是否一致，结束后关闭服务 |
 
-校验错误需要修复后再继续；警告需要审阅。回放必须覆盖全部规范录制，不会验证线上接口是否仍然可用。
+`verify` 按顺序执行严格校验、两次渲染、文件路径及字节比较、本地回放，任一步失败即停止，并将实际结果写入 `.reports/verify.json`。默认警告也会失败；仅在明确接受已审阅警告时使用 `npm run verify -- --no-strict`。上表的独立命令仍可用于排查问题。回放必须覆盖全部规范录制，不会验证线上接口是否仍然可用。尚无录制的空集合不能通过回放。
 
-还应验证相同输入连续渲染两次，生成的文件集合和内容完全一致。可以让 pipeline skill 完成，也可以使用[开发指南中的 PowerShell 比较脚本](DEVELOPMENT.md#verify-collection-changes)。仅看到 `git diff` 为空不够，因为它不包含未跟踪文件。
+两次渲染比较包含未跟踪文件。生成的 CI 使用 `npm run verify -- --committed`，额外在渲染前后检查 `dist/` 与 HEAD 一致，包括已暂存、未跟踪和被忽略的文件。首次导入或本地修改时先运行普通 `verify`，审阅并提交产物后再使用 `--committed`。CI 不需要私有 HAR。
 
 完成后，从这些入口查看结果：
 
@@ -240,7 +247,7 @@ node vendor/apimesh/workflow/cli/dist/cli.js --root . test
 
 要在 Postman 里手动回放，先启动服务并保持终端运行：
 
-```powershell
+```bash
 node vendor/apimesh/workflow/cli/dist/cli.js --root . serve
 ```
 
@@ -254,6 +261,11 @@ node vendor/apimesh/workflow/cli/dist/cli.js --root . serve
 apimesh-bilishow/
   .gitmodules
   .gitignore
+  .gitattributes
+  .github/workflows/verify.yml
+  package.json
+  AGENTS.md
+  README.md
   collection.json
   glossary.json
   sources/
@@ -266,7 +278,7 @@ apimesh-bilishow/
 
 先检查改动和 vendor 状态：
 
-```powershell
+```bash
 git status --short
 git -C vendor/apimesh status --short
 git diff
@@ -274,11 +286,10 @@ git diff
 
 正常处理业务数据不会修改 vendor 源码。子模块内若出现源码变更，应先查明原因，不要把业务配置混进工具链。
 
-确认录制适合共享、目标记录处理完整、检查通过后，明确暂存本次文件。下面的 HAR 文件名仍需换成你的实际文件名：
+确认目标记录处理完整、检查通过后，明确暂存本次文件。原始 HAR 默认保持本地：
 
-```powershell
-git add .gitmodules .gitignore vendor/apimesh collection.json glossary.json apis/ dist/
-git add sources/bilishow-project-list-2026-10-02.har sources/bilishow-project-detail-2026-10-02.har
+```bash
+git add .gitmodules .gitignore .gitattributes .github/workflows/verify.yml package.json AGENTS.md README.md vendor/apimesh collection.json glossary.json apis/ dist/
 git diff --cached --stat
 git diff --cached
 git diff --cached --check
@@ -291,9 +302,9 @@ git commit -m "feat: add initial bilishow API collection"
 
 其他人克隆已经建立好的业务仓库时，用下面的方式一起取出子模块。把 URL 替换为实际的业务仓库地址：
 
-```powershell
-$collectionRepository = '替换为 apimesh-bilishow 的 Git URL'
-git clone --recurse-submodules $collectionRepository apimesh-bilishow
+```bash
+collection_repository='替换为 apimesh-bilishow 的 Git URL'
+git clone --recurse-submodules "$collection_repository" apimesh-bilishow
 cd apimesh-bilishow
 npm --prefix vendor/apimesh/workflow/cli ci
 npm --prefix vendor/apimesh/workflow/cli run build
@@ -303,7 +314,7 @@ npm --prefix vendor/apimesh/workflow/cli run build
 
 新增录制时保留旧文件，为新批次使用新文件名，再重复抽取、分类和验证。只想先比较差异，可以运行：
 
-```powershell
+```bash
 node vendor/apimesh/workflow/cli/dist/cli.js --root . drift "sources/实际新增录制.har"
 ```
 

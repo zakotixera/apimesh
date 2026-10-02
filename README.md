@@ -88,7 +88,15 @@ npm run build
 npm run apic -- --help
 ```
 
-After installing and building a vendored toolchain, run from the application root:
+After installing a vendored toolchain, initialize from the application root:
+
+```sh
+npm --prefix vendor/apimesh/workflow/cli run init -- --root . --name "My API collection"
+```
+
+This builds the CLI and creates missing metadata, package scripts, Git defaults, CI and maintenance instructions. Existing files are preserved; add `--dry-run` to preview application writes. Put HARs in ignored `sources/`, run `npm run extract`, classify the drafts, then run `npm run verify` for strict validation, two-render stability and local replay. CI uses `npm run verify -- --committed` to require generated outputs to match HEAD. Initialization does not create a completed import report. See [the setup guide](DEVELOPMENT.md#initialize-collection-metadata).
+
+Individual commands remain available from the application root:
 
 ```sh
 node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
@@ -127,7 +135,7 @@ For interactive Postman replay, run `node vendor/apimesh/workflow/cli/dist/cli.j
 |---|---|
 | `workflow/skills/` | Semantic work and orchestration instructions |
 | `workflow/cli/` | TypeScript executor, renderers, replay server, tests |
-| `workflow/templates/` | Schema-checked collection metadata starters |
+| `workflow/templates/` | Schema-checked metadata starters and application setup templates |
 | `schema/` | Canonical JSON Schemas |
 | `ARCHITECTURE.md` | Collection layout, artifact contracts and ownership |
 | `workflow/cli/dist/` | Compiled CLI code |

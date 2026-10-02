@@ -13,12 +13,13 @@
     "node": ">=20"
   },
   "scripts": {
+    "preinit": "npm run build",
+    "init": "node scripts/init.cjs",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "apic": "node ./dist/cli.js",
     "link": "npm link",
-    "pretest": "npm run build",
-    "test": "vitest run --passWithNoTests=false",
+    "test": "node scripts/ci.cjs check",
     "test:local": "vitest run --config vitest.local.config.ts",
     "test:har": "npm run build && node scripts/check-har.cjs",
     "test:ablation": "npm run build && node scripts/ablate.cjs"

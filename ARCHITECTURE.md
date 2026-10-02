@@ -10,7 +10,7 @@ apimesh/                         # This repository
   workflow/
     cli/                         # Executor, renderers, replay, tests
     skills/                      # Evidence-based semantic workflows
-    templates/                   # Empty collection and glossary starters
+    templates/                   # Metadata starters and application setup templates
   .github/workflows/ci.yml        # Toolchain verification
   ARCHITECTURE.md
   DEVELOPMENT.md
@@ -19,6 +19,9 @@ application/                     # Consuming repository
   vendor/apimesh/                 # Pinned toolchain
   collection.json
   glossary.json
+  package.json                   # Scripts delegate to pinned CLI
+  .github/workflows/verify.yml    # Application verification
+  AGENTS.md                      # Collection maintenance instructions
   sources/                       # Reviewed original HAR evidence
   apis/<host>/<path>/             # Maintained canonical corpus
   dist/{docs,agent,postman}/       # Generated, committed outputs
@@ -40,7 +43,11 @@ application/                     # Consuming repository
 
 The toolchain location derives from the executing module, never from collection files or the working directory. Collections cannot shadow its schemas by adding their own `schema/` directory. The compiled CLI must stay at `workflow/cli/dist/` beside the rest of the pinned toolchain.
 
-`apic --root <directory> <command>` targets exactly that directory. Without `--root`, discovery walks upward from the working directory to the nearest `collection.json` or `glossary.json`, then requires both files. An incomplete nested collection fails locally rather than silently selecting its parent. Toolchain metadata templates are excluded from discovery and cannot be explicitly targeted.
+`apic --root <directory> <command>` targets exactly that directory. Without `--root`, discovery walks upward from the working directory to the nearest `collection.json` or `glossary.json`, then requires both files. An incomplete nested collection fails locally rather than silently selecting its parent. Toolchain metadata templates are excluded from discovery and cannot be explicitly targeted. `init` instead targets `--root` or the current directory without requiring metadata; it refuses to initialize inside the executing toolchain.
+
+`apic init` copies missing application setup files from toolchain templates and preserves existing files without merging. The application owns those copies after initialization. The npm `init` entry point restores its original caller directory before resolving `--root`. Shared extraction and verification stay in the toolchain; application-specific preprocessing stays in the application. An import report must come from actual work and is not a bootstrap template.
+
+`apic verify` composes strict validation, two renders with a complete path/byte comparison, and local replay. Its stage report belongs in `.reports/verify.json`; it stops on failure and does not claim source coverage. Optional `--committed` checks generated files against Git HEAD before and after rendering, including staged/untracked/ignored files. Generated application CI enables that check; ordinary local verification allows expected uncommitted outputs.
 
 Explicit HAR paths and `--out` paths remain relative to the caller's working directory. `--root` does not change that directory. Default `.raw/`, `.reports/` and `dist/` paths resolve under the selected collection. Run the built CLI directly from the application root to avoid npm's package-directory working-directory behavior.
 

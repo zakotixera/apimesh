@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import { queryFromUrl } from './lib/http-fields';
 import { Command } from 'commander';
 import { stringify as yamlStringify } from 'yaml';
@@ -175,13 +176,19 @@ interface ExtractOptions {
 /** Extract masked, grouped and deduplicated HAR frames into YAML drafts and a report. */
 export function extractCommand(): Command {
   return new Command()
-    .command('extract <har...>')
+    .command('extract [har...]')
     .description('Extract HAR into masked, deduplicated YAML drafts and reports')
     .option('--out <dir>', 'Output directory; update only unchanged managed files (default <root>/.raw)')
     .option('--account <label>', 'Sanitized account label', 'anonymous')
     .option('--origin <label>', 'Override the capture origin for every frame (default: auto-detect)')
     .action(async (hars: string[], options: ExtractOptions, command: Command) => {
       const paths = resolvePaths(undefined, command.optsWithGlobals().root);
+      if (hars.length === 0) {
+        hars = fs.existsSync(paths.sources) ? fs.readdirSync(paths.sources, { withFileTypes: true })
+          .filter((entry) => entry.isFile() && /\.har$/i.test(entry.name))
+          .map((entry) => path.join(paths.sources, entry.name)).sort() : [];
+        if (hars.length === 0) throw new Error('No HAR inputs found. Pass explicit file paths or put captures in collection sources/.');
+      }
       const collection = loadCollection(paths);
       const cfg = maskConfigFromCollection(collection);
       const sec = defaultSecurityMaskerConfig();

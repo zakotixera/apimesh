@@ -29,6 +29,23 @@ function fixture() {
   return { dir, project, input };
 }
 describe('CLI commands with isolated fixtures', () => {
+  it('selects sorted direct source HARs from the collection when no inputs are provided', async () => {
+    const { project, input } = fixture();
+    fs.mkdirSync(project.sources);
+    for (const name of ['z.HAR', 'a.har']) fs.copyFileSync(input, path.join(project.sources, name));
+    fs.mkdirSync(path.join(project.sources, 'nested.har'));
+    fs.writeFileSync(path.join(project.sources, 'ignore.txt'), 'not a capture');
+    await extractCommand().parseAsync([], { from: 'user' });
+    const report = JSON.parse(fs.readFileSync(path.join(project.reports, 'extract-a.json'), 'utf8'));
+    expect(report).toMatchObject({ inputs: ['a.har', 'z.HAR'], frames: 2, duplicates: 1 });
+  });
+  it('fails an empty automatic batch before changing existing drafts', async () => {
+    const { project, input } = fixture();
+    await extractCommand().parseAsync([input], { from: 'user' });
+    const before = fs.readFileSync(path.join(project.extract, 'POST.x.yaml'));
+    await expect(extractCommand().parseAsync([], { from: 'user' })).rejects.toThrow('No HAR inputs');
+    expect(fs.readFileSync(path.join(project.extract, 'POST.x.yaml'))).toEqual(before);
+  });
   it('keeps cookies only in raw headers alongside repeated query pairs and explicit empty fields', async () => {
     const { project, input } = fixture();
     const har = JSON.parse(fs.readFileSync(input, 'utf8'));

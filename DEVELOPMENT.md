@@ -18,7 +18,17 @@ A source copy or subtree also works. Keep `schema/` and `workflow/` together and
 
 ## Initialize collection metadata
 
-Copy `vendor/apimesh/workflow/templates/collection.json` and `glossary.json` to the application root. There is no initialization command. Create `sources/` for recordings; classification creates `apis/`, and CLI commands create their output directories when needed. Do not copy placeholder artifact trees into vendor.
+From the application root, initialize the reusable setup:
+
+```sh
+npm --prefix vendor/apimesh/workflow/cli run init -- --root . --name "Catalog API collection"
+```
+
+This npm entry point builds the CLI and resolves `--root` from the directory where you invoked npm. With an already-built CLI, `node vendor/apimesh/workflow/cli/dist/cli.js --root . init --name "Catalog API collection"` is equivalent. Add `--dry-run` to preview file creation (the npm entry point still builds the toolchain).
+
+Initialization creates missing `collection.json`, `glossary.json`, `package.json`, `.gitignore`, `.gitattributes`, `.github/workflows/verify.yml`, `AGENTS.md`, `README.md`, and `sources/`. It preserves all existing files without merging or overwriting them, reports those files, and rejects symlink/junction destinations. Reconcile preserved setup files with `workflow/templates/application/` yourself. Run it again to restore missing setup files; it is not an automatic template upgrader. When run from a nested toolchain, scripts use that relative vendor path; an external checkout prepares scripts for the standard `vendor/apimesh` installation.
+
+Generated package scripts call the shared CLI directly. `npm run setup` installs/builds the pinned toolchain; `npm run extract` selects the sorted direct HAR files in `sources/`; `npm run verify` performs the complete verification sequence. Initialization creates no endpoints, business meanings, custom sanitization implementation, or completed import report. Classification creates `apis/`, and CLI commands create their outputs as needed.
 
 Set the collection's `name`, semantic `version`, and `bases` (stable origin labels mapped to actual API origins). The optional `auth` registry declares header/cookie names to mask. Use the same actual name as both registry key and entry `name`, for example:
 
@@ -40,16 +50,17 @@ Set the collection's `name`, semantic `version`, and `bases` (stable origin labe
 
 Store descriptions, never credential values. Registered names also participate in query/body masking; generic redaction applies additional rules. Start with the empty glossary and add terms only when recordings establish meaning. Every canonical variant must reference a registered term; HTTP 200 or business code 0 alone does not establish success.
 
-Add these patterns to the application's `.gitignore`:
+The generated `.gitignore` includes these patterns; reconcile them when preserving an existing file:
 
 ```gitignore
 .raw/
 .reports/
 node_modules/
+/sources/
 vendor/apimesh/workflow/cli/dist/
 ```
 
-Track reviewed `sources/`, `collection.json`, `glossary.json`, `apis/`, and generated collection `dist/`. The root `dist/` is distinct from compiled CLI code inside vendor.
+Track setup files, `collection.json`, `glossary.json`, `apis/`, and generated collection `dist/`. Original `sources/` are ignored by default; publish only deliberately reviewed recordings after adjusting that policy. The root `dist/` is distinct from compiled CLI code inside vendor.
 
 ## Run against a collection
 
@@ -66,7 +77,7 @@ Input paths and explicit `--out` paths resolve from the caller's working directo
 
 Keep private originals outside published repositories. Review HAR files before committing: extraction writes masked drafts without changing originals, and arbitrary text or binary bodies may still contain sensitive data.
 
-Pass every HAR in an intended batch to one extraction call. Extraction replaces its manifest-managed set; separate calls do not accumulate drafts. The CLI does not expand globs. If existing drafts are edited or unowned, preserve them and choose a fresh directory:
+Pass every HAR in an intended batch to one extraction call, or omit inputs to process all direct `.har` files in the selected collection's `sources/` in sorted order. An empty automatic selection fails before changing drafts. Extraction replaces its manifest-managed set; separate calls do not accumulate drafts. The CLI does not expand globs. If existing drafts are edited or unowned, preserve them and choose a fresh directory:
 
 ```sh
 node vendor/apimesh/workflow/cli/dist/cli.js --root . extract "sources/catalog-list.har" --out .raw/import-02
@@ -82,32 +93,15 @@ Preserve JSON text, body metadata, HTTP metadata and existing recording names. D
 
 ## Verify collection changes
 
-After classification, run:
+After classification, run `npm run verify`, or invoke the same shared command directly:
 
 ```sh
-node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
-node vendor/apimesh/workflow/cli/dist/cli.js --root . render --all
-node vendor/apimesh/workflow/cli/dist/cli.js --root . test
+node vendor/apimesh/workflow/cli/dist/cli.js --root . verify
 ```
 
-Resolve validation errors, retain warnings in the handoff, and use `validate --strict` when warnings should fail. Render again and compare every generated path and byte, including untracked files. For example, in PowerShell after the first render:
+This runs strict validation, renders all outputs twice, compares every output path and byte (including untracked files), and replays locally. It stops at the first failure and writes actual stage results to `.reports/verify.json`. Resolve errors and warnings; use `verify --no-strict` only when reviewed warnings are acceptable. Individual `validate`, `render` and `test` commands remain available for diagnosis. No recordings means replay fails, including immediately after initialization.
 
-```powershell
-function Get-OutputSnapshot {
-  Get-ChildItem -LiteralPath 'dist/docs', 'dist/agent', 'dist/postman' -File -Recurse |
-    Sort-Object FullName |
-    ForEach-Object { $_.FullName + ' ' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
-}
-$beforeRender = @(Get-OutputSnapshot)
-node vendor/apimesh/workflow/cli/dist/cli.js --root . render --all
-if ($LASTEXITCODE -ne 0) { throw 'Render failed' }
-$afterRender = @(Get-OutputSnapshot)
-if (Compare-Object -ReferenceObject $beforeRender -DifferenceObject $afterRender) {
-  throw 'Generated file paths or contents changed between renders'
-}
-```
-
-Application CI should check out submodules, install/build the pinned CLI, validate, render twice, check `git status --porcelain=v1 --untracked-files=all -- dist/` after each render, and replay. This checks committed-output synchronization in addition to render determinism. Upstream [CI](.github/workflows/ci.yml) tests the toolchain with disposable synthetic collections; it does not validate downstream application data.
+Generated CI checks out submodules, installs/builds the pinned toolchain, and runs `npm run verify -- --committed`. This additionally requires a Git commit and checks `dist/` against HEAD before and after rendering, including staged, untracked and ignored files. Locally, use ordinary `verify` while preparing expected changes; review and commit outputs before using `--committed`. CI does not need private HARs. Upstream [CI](.github/workflows/ci.yml) tests the toolchain with disposable synthetic collections; it does not validate downstream application data.
 
 `test` exercises every canonical recording with Newman against a temporary local server. It does not test live service availability. For interactive Postman use, run `serve`, import the generated collection and replay environment, and keep the server running. Use `serve --port 4011` and update the environment's `baseUrl` when needed. Generated `dist/docs/usage.md` describes live setup separately.
 

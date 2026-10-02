@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix \"__APIMESH_VENDOR__/workflow/cli\" ci && npm --prefix \"__APIMESH_VENDOR__/workflow/cli\" run build",
+    "apic": "node \"__APIMESH_VENDOR__/workflow/cli/dist/cli.js\" --root .",
+    "extract": "node \"__APIMESH_VENDOR__/workflow/cli/dist/cli.js\" --root . extract",
+    "validate": "node \"__APIMESH_VENDOR__/workflow/cli/dist/cli.js\" --root . validate",
+    "render": "node \"__APIMESH_VENDOR__/workflow/cli/dist/cli.js\" --root . render --all",
+    "verify": "node \"__APIMESH_VENDOR__/workflow/cli/dist/cli.js\" --root . verify",
+    "test": "node \"__APIMESH_VENDOR__/workflow/cli/dist/cli.js\" --root . test",
+    "serve": "node \"__APIMESH_VENDOR__/workflow/cli/dist/cli.js\" --root . serve"
+  }
+}

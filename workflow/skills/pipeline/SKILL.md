@@ -14,6 +14,8 @@ description: 编排 HAR 导入、分类、可选说明、校验、渲染和本�
 3. 检查 Node.js ≥20。首次运行或依赖变化时执行 `npm --prefix vendor/apimesh/workflow/cli ci`，然后执行 `npm --prefix vendor/apimesh/workflow/cli run build`。构建成功后通过 `node vendor/apimesh/workflow/cli/dist/cli.js --root . <command>` 调用本地 CLI；`npx apic` 可能下载同名包，全局 link 为可选配置。
 4. 检查用户指定的 HAR 文件与 `sources/`。缺少可用输入时报告所需文件，等待真实录制数据。恢复运行时复用已确认的输入和上游结果。
 
+新应用尚无元数据时，安装依赖后从应用根目录运行 `npm --prefix vendor/apimesh/workflow/cli run init -- --root . --name "集合名称"`。该入口恢复 npm 调用目录后解析 `--root`。初始化只创建缺失文件；核对保留的脚本、Git 和 CI 设置，按实际证据补充元数据。不要重复编写通用验证脚本，也不要复制已完成的导入报告；应用特有的脱敏逻辑仍由应用维护。
+
 ## 执行与检查
 
 | 步骤 | 操作 | 完成证据 / 失败处理 |
@@ -27,17 +29,17 @@ description: 编排 HAR 导入、分类、可选说明、校验、渲染和本�
 | 7 本地回放 | `node vendor/apimesh/workflow/cli/dist/cli.js --root . test` | 全部录制样例的断言通过。修改规范数据后重复 4–7；修改 CLI 后先构建并运行相关测试，再重复受影响的检查 |
 | 8 审阅交接 | 审查本次 diff，整理变更说明和验证证据；任务包含 PR 时创建 PR | 列出未决项。仅要求本地结果时提供本地交接；PR 创建条件不足时保留可审阅成果并说明原因 |
 
-`<明确的 HAR 路径列表>` 是占位说明，执行时替换为实际文件，例如 `sources/capture.har`，路径含空格时引用。CLI 不展开 glob；PowerShell 可用下面方式把选定目录的 HAR 作为一个批次传入：
+正常执行时，用 `node vendor/apimesh/workflow/cli/dist/cli.js --root . verify`（已初始化的应用可用 `npm run verify`）统一完成步骤 4–7；上表的独立命令用于定位失败阶段。`verify` 默认严格校验，失败即停止，实际结果在 `.reports/verify.json`。允许已审阅的警告时显式使用 `--no-strict`。CI 使用 `verify --committed`，在渲染前后额外检查产物与 HEAD 一致；本地有预期修改时先使用普通验证，审阅提交后再检查同步。验证报告不证明整批源文件已全部分类或脱敏。
 
-```powershell
-$harFiles = @(Get-ChildItem -LiteralPath 'sources' -File -Filter '*.har' |
-  Sort-Object Name | ForEach-Object { $_.FullName })
-if ($harFiles.Count -eq 0) { throw 'No HAR files found in sources/' }
-node vendor/apimesh/workflow/cli/dist/cli.js --root . extract @harFiles
-if ($LASTEXITCODE -ne 0) { throw 'apic extract failed' }
+明确的 HAR 路径列表是占位说明，执行时替换为实际文件，例如 sources/capture.har，路径含空格时引用。默认使用 Bash；CLI 不展开 glob。整个 sources/ 批次直接使用共享抽取命令：
+
+```bash
+node vendor/apimesh/workflow/cli/dist/cli.js --root . extract
 ```
 
 用户指定部分 HAR 时，仅传入这些文件。每次 extract 会替换当前 manifest 管理的抽取结果集合，因此同一批次的 HAR 应通过一次调用传入。
+
+用户范围是整个 `sources/` 时，可省略输入参数：`npm run extract` 或 `apic --root . extract` 会按文件名排序选取集合根目录 `sources/` 下的直接 HAR 文件（不递归）。没有文件时失败，不修改已有草稿。需要子集时仍显式传入路径。
 
 ## 恢复规则
 
