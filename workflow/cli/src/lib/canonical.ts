@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Collection, Definition, Example, Glossary } from './types';
-import { projectPaths, rel, type ProjectPaths } from './paths';
+import { rel, type ProjectPaths } from './paths';
 import { exists, readJson, walk } from './fsx';
 
 /** Loaded example and source file information. */
@@ -74,9 +74,8 @@ export function loadCanonicalApis(paths: ProjectPaths): LoadedApi[] {
   });
 }
 
-/** Load collection, glossary and canonical APIs from the repository root. */
-export function loadCorpus(root: string): LoadedCorpus {
-  const paths = projectPaths(root);
+/** Load canonical data using the command's already resolved execution context. */
+export function loadCorpus(paths: ProjectPaths): LoadedCorpus {
   return {
     paths,
     collection: loadCollection(paths),

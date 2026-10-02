@@ -1,11 +1,6 @@
-# Scratch / regenerable staging (extract drafts)
-# Contents are regenerable and ignored; the directory's README is documentation and tracked.
-.raw/*
-!.raw/README.md
-
-# Disposable CLI diagnostics (extract / validate / drift)
-.reports/*
-!.reports/README.md
+# Disposable collection scratch output
+.raw/
+.reports/
 
 # Local tool state (agent session continuity, etc.)
 .omo/

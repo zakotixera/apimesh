@@ -5,6 +5,8 @@ const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
+const { Command } = require('commander');
+const { findRepoRoot } = require('../dist/lib/paths');
 
 const repo = path.resolve(__dirname, '../../..');
 const harness = 'workflow/cli/scripts/check-har.cjs';
@@ -58,9 +60,17 @@ function syntheticHar() {
 }
 
 function main() {
+  const program = new Command().argument('[har...]').option('--out <directory>', 'Report directory (default: collection .reports or OS temporary storage)').parse(process.argv);
+  let reportDirectory = program.opts().out;
+  if (!reportDirectory) {
+    let collection;
+    try { collection = findRepoRoot(); } catch { /* Standalone toolchain development. */ }
+    reportDirectory = collection ? path.join(collection, '.reports') : fs.mkdtempSync(path.join(os.tmpdir(), 'apic-ablation-reports-'));
+  }
+  reportDirectory = path.resolve(reportDirectory);
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'apic-ablation-'));
   try {
-    const inputs = process.argv.slice(2).map((file) => path.resolve(file));
+    const inputs = program.args.map((file) => path.resolve(file));
     const synthetic = inputs.length === 0;
     if (synthetic) {
       const input = path.join(scratch, 'synthetic.har');
@@ -90,7 +100,7 @@ function main() {
     if (inputs.some((file, index) => createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== sourceHashes[index])) throw new Error('Source changed');
     const report = { dataset: synthetic ? 'synthetic' : 'caller-supplied HAR', sourceHashes,
       node: process.version, platform: process.platform, method: 'One factor removed per isolated copy; first failing check reported; no semantic classification performed', results };
-    const output = path.join(repo, '.reports', synthetic ? 'ablation-synthetic.json' : 'ablation-har.json');
+    const output = path.join(reportDirectory, synthetic ? 'ablation-synthetic.json' : 'ablation-har.json');
     fs.mkdirSync(path.dirname(output), { recursive: true });
     fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
     console.log(`Report: ${output}`);

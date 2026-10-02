@@ -19,7 +19,6 @@ describe('canonical request identity validation', () => {
   ])('checks %s %s against its definition', async (method, url, errors) => {
     const root = temporaryDirectory(); dirs.push(root);
     const project = paths.projectPaths(root);
-    fs.cpSync(path.resolve(import.meta.dirname, '../../../schema'), project.schema, { recursive: true });
     const data = corpus([]);
     const def = data.apis[0].definition;
     def.endpoint.url = 'https://example.invalid/x';
@@ -45,7 +44,6 @@ describe('canonical structural and observation validation', () => {
   async function validate(change: (files: Record<string, any>) => void) {
     const root = temporaryDirectory(); dirs.push(root);
     const project = paths.projectPaths(root);
-    fs.cpSync(path.resolve(import.meta.dirname, '../../../schema'), project.schema, { recursive: true });
     const data = corpus([]);
     const def = data.apis[0].definition;
     def.endpoint.url = 'https://example.invalid/x';

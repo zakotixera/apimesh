@@ -180,8 +180,8 @@ export function extractCommand(): Command {
     .option('--out <dir>', 'Output directory; update only unchanged managed files (default <root>/.raw)')
     .option('--account <label>', 'Sanitized account label', 'anonymous')
     .option('--origin <label>', 'Override the capture origin for every frame (default: auto-detect)')
-    .action(async (hars: string[], options: ExtractOptions) => {
-      const paths = resolvePaths();
+    .action(async (hars: string[], options: ExtractOptions, command: Command) => {
+      const paths = resolvePaths(undefined, command.optsWithGlobals().root);
       const collection = loadCollection(paths);
       const cfg = maskConfigFromCollection(collection);
       const sec = defaultSecurityMaskerConfig();

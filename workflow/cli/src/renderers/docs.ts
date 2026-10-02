@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { rel } from '../lib/paths';
 import type { BodyNode, GeneratedFile } from '../lib/types';
 import { apiHost, docsFile } from '../lib/api-layout';
 import type { LoadedApi, LoadedCorpus } from '../lib/canonical';
@@ -87,11 +89,17 @@ function renderApiPage(api: LoadedApi): string {
 }
 
 function renderUsage(corpus: LoadedCorpus): string {
+  const toolkit = rel(corpus.paths.root, corpus.paths.toolchainRoot);
+  const nested = /^[\w ./-]*$/.test(toolkit) && (toolkit === '' || (!toolkit.startsWith('../') && toolkit !== '..' && !path.isAbsolute(toolkit)));
+  const cli = [toolkit, 'workflow/cli'].filter(Boolean).join('/');
+  // Quote spaces in simple relative paths; other installations use a stable PATH command.
+  const command = nested ? `node ${JSON.stringify(`${cli}/dist/cli.js`)} --root .` : 'apic --root .';
+  const setup = nested ? [`npm --prefix ${JSON.stringify(cli)} ci`, `npm --prefix ${JSON.stringify(cli)} run build`] : [];
   const used = [...new Set(corpus.apis.flatMap((api) => api.examples.flatMap((ex) => placeholders(ex.data.request))))].sort();
   return [`# Using ${corpus.collection.name}`, '', '[API index](summary.md) · [Agent index](../agent/index.json)', '',
-    '## Local replay', '', 'From the repository root:', '', '```sh', 'cd workflow/cli', 'npm ci', 'npm run build', 'npm run apic -- serve', '```', '',
+    '## Local replay', '', 'From the collection root:', '', ...(nested ? [] : ['Build your pinned apimesh toolchain and put its `apic` executable on PATH (for example with `npm link` from its `workflow/cli` directory).', '']), '```sh', ...setup, `${command} serve`, '```', '',
     'Import the [Postman collection](../postman/endpoints.postman_collection.json) and [replay environment](../postman/replay.postman_environment.json). Select the replay environment and send a recording. Keep its query, body and masked values unchanged.', '',
-    'Default: `http://127.0.0.1:4010`. To change ports, use `serve --port 4011` and update `baseUrl`. Run `npm run apic -- test` to replay all recordings automatically.', '',
+    'Default: `http://127.0.0.1:4010`. To change ports, use `serve --port 4011` and update `baseUrl`. Run the same CLI with `test` instead of `serve` to replay all recordings automatically.', '',
     '## Live requests', '',
     'Use a separate environment with `apicReplay=false`. Set the origin variables as needed and enable placeholders with your own values.', '',
     ...(used.length ? ['| placeholder | description |', '|---|---|', ...used.map((name) =>

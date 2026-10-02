@@ -28,7 +28,7 @@
       "expected_output": "Build and invoke the local CLI, supply explicit quoted HAR paths as one batch, choose fresh --out and pass it to classify, preserve unrelated work, report partial import for the missing response body, compare paths and hashes across two renders, keep delivery local.",
       "files": [],
       "assertions": [
-        "Builds and invokes the local CLI from workflow/cli, passing both spaced HAR paths as one batch.",
+        "Builds the pinned toolchain and invokes its CLI from the application root with --root ., passing both spaced HAR paths as one batch.",
         "Uses a fresh --out directory and passes that directory to classify, preserving the modified draft and manifest.",
         "Preserves unrelated changes and keeps delivery local without creating a PR.",
         "Compares generated file paths and content hashes across consecutive renders, including untracked files.",

@@ -42,8 +42,6 @@ function checkHar(inputs) {
     if (!completedStages.includes(args[0])) completedStages.push(args[0]);
   };
   try {
-    fs.mkdirSync(path.join(root, 'workflow'));
-    fs.cpSync(path.join(repo, 'schema'), path.join(root, 'schema'), { recursive: true });
     const entries = files.flatMap((file) => JSON.parse(fs.readFileSync(file, 'utf8')).log.entries);
     if (entries.length === 0) throw new Error('HAR contains no recordings');
     const origins = [...new Set(entries.map((entry) => new URL(entry.request.url).origin))].sort();

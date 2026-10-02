@@ -38,9 +38,9 @@ export function renderCommand(): Command {
     .option('--agent', 'Render dist/agent only')
     .option('--postman', 'Render dist/postman only')
     .option('--all', 'Render all outputs (default)')
-    .action(async (options: RenderOptions) => {
-      const paths = resolvePaths();
-      const corpus = loadCorpus(paths.root);
+    .action(async (options: RenderOptions, command: Command) => {
+      const paths = resolvePaths(undefined, command.optsWithGlobals().root);
+      const corpus = loadCorpus(paths);
 
       const anySpecific =
         options.docs === true || options.agent === true || options.postman === true;

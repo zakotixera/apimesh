@@ -13,27 +13,7 @@ function run(script: string, args: string[]) {
   });
 }
 
-describe('template and complete workflow', () => {
-  it('distinguishes templates from complete and partially configured collections', () => {
-    const dir = fixture();
-    expect(run('collection-mode.cjs', [dir]).stdout.trim()).toBe('template');
-    fs.mkdirSync(path.join(dir, 'apis'));
-    fs.writeFileSync(path.join(dir, 'apis/README.md'), 'documentation');
-    expect(run('collection-mode.cjs', [dir]).stdout.trim()).toBe('template');
-    fs.writeFileSync(path.join(dir, 'collection.json'), '{}');
-    expect(run('collection-mode.cjs', [dir]).status).toBe(1);
-    fs.writeFileSync(path.join(dir, 'glossary.json'), '{}');
-    expect(run('collection-mode.cjs', [dir]).stdout.trim()).toBe('collection');
-  });
-
-  it.each(['apis/x/definition.json', 'dist/docs/x.md'])('does not skip checks when metadata is missing but %s remains', (name) => {
-    const dir = fixture();
-    const file = path.join(dir, name);
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, '{}');
-    expect(run('collection-mode.cjs', [dir]).status).toBe(1);
-  });
-
+describe('complete synthetic workflow', () => {
   it.each([false, true])('extracts, validates, renders twice, replays and compares drift (multiple hosts: %s)', (multipleHosts) => {
     const dir = fixture();
     const file = path.join(dir, 'capture with spaces.har');

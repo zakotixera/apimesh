@@ -1,6 +1,6 @@
 # apic CLI
 
-Reads repository data and schemas; writes extraction drafts and generated artifacts. Semantic decisions and canonical edits belong to [skills](../skills/README.md).
+Reads application collection data and toolchain-owned schemas; writes extraction drafts and generated artifacts. Semantic decisions and canonical edits belong to [skills](../skills/README.md).
 
 - [src/](src/) contains commands, shared processing, renderers, and the replay server.
 - [test/](test/) contains regression tests and synthetic fixtures.
@@ -16,7 +16,15 @@ npm run build
 npm run apic -- --help
 ```
 
-Run commands with `npm run apic -- <command>` from this directory. Optional `npm link` exposes `apic` from any directory inside the repository.
+For a vendored installation, install and build from the application root with `npm --prefix vendor/apimesh/workflow/cli ci` and `npm --prefix vendor/apimesh/workflow/cli run build`, then run:
+
+```sh
+node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
+```
+
+`--root <directory>` selects exactly that collection; without it, discovery walks upward from the working directory to the nearest collection metadata marker and requires both `collection.json` and `glossary.json`. Toolchain templates are excluded. The application does not need `workflow/` or `schema/`; schemas come from the executing CLI's toolchain. Keep the compiled CLI in its original layout beside `schema/` and the rest of `workflow/`.
+
+Optional `npm link` exposes `apic`. `npm run apic -- <command>` works inside the CLI package for a nested vendor installation, but npm changes the working directory to that package: relative HAR paths and explicit roots must account for this. Direct `node` invocation from the application root avoids that ambiguity.
 
 | Command | Responsibility |
 |---|---|
@@ -27,19 +35,19 @@ Run commands with `npm run apic -- <command>` from this directory. Optional `npm
 | `test` | Check generated Postman requests against local recordings |
 | `serve [--port <port>]` | Keep a local replay server running for interactive Postman use (default: 4010) |
 
-Use `<command> --help` for options. Input paths and explicit `--out` paths resolve from the current directory; default outputs resolve from the repository root. A capture path from here is `../../sources/capture.har`.
+Use `<command> --help` for options. Input paths and explicit `--out` paths resolve from the current directory; default outputs resolve from the selected collection root. With direct invocation from the application root, use `sources/capture.har`. `--root` does not change the working directory.
 
 ## Output boundaries
 
 Extraction uses `.apic-extract.json` to track filenames and hashes. It updates unchanged managed files, removes obsolete managed files, and preserves unrelated files. Modified or unowned output collisions are rejected; use a new `--out` directory for older drafts without a manifest. Symlink and junction output paths are rejected. Writes are not transactional.
 
-Rendering replaces generated output groups while preserving their READMEs. Local `dist/` contains compiled JavaScript; repository-root `dist/` contains committed consumer artifacts. Extraction, validation, and drift diagnostics go to repository-root `.reports/`, which is gitignored and disposable. `apic render` does not generate reports.
+Rendering replaces generated output groups while preserving their READMEs. Local `dist/` contains compiled JavaScript; collection-root `dist/` contains committed consumer artifacts. Extraction, validation, and drift diagnostics go to collection-root `.reports/`, which is gitignored and disposable. `apic render` does not generate reports.
 
 Postman exports use `dist/postman/endpoints.postman_collection.json` and `replay.postman_environment.json`. Each recorded origin gets its own collection variable, using the matching `collection.bases` label when available. Hosts are taken from recordings, including hosts absent from collection metadata. The local replay environment sets `apicReplay=true` and `baseUrl=http://127.0.0.1:4010`; request scripts override their origin variable and select the exact recording only in replay mode. Request placeholder entries are listed but disabled so replay preserves their literal masked values.
 
-For interactive use, run `npm run apic -- serve`, import both artifacts, and select the local replay environment. The loopback server stays available until Ctrl+C. Use `serve --port 4011` and update the environment's `baseUrl` if needed; `--port 0` prints an available port. `apic test` continues to own a temporary server for automated checks. For live use, create a separate environment with `apicReplay` absent or false, supply your own placeholder values, and override individual origin variables as needed. Generated `dist/docs/usage.md` documents the collection's request placeholders.
+For interactive use, run `node vendor/apimesh/workflow/cli/dist/cli.js --root . serve` from the application root, import both artifacts, and select the local replay environment. The loopback server stays available until Ctrl+C. Use `serve --port 4011` and update the environment's `baseUrl` if needed; `--port 0` prints an available port. `apic test` continues to own a temporary server for automated checks. For live use, create a separate environment with `apicReplay` absent or false, supply your own placeholder values, and override individual origin variables as needed. Generated `dist/docs/usage.md` documents the collection's request placeholders.
 
-Human documentation links canonical examples and shows parameter and response field tables. Only long parameter values and response fields are expandable; raw request recipes and capture header dumps are omitted. Agent index format **2** is a compact discovery manifest; load the `detailFile` for request definitions, full response variants, and example paths. JSON file references use the repository root as their base (`pathBase: repository-root`). This replaces the previous inline request/schema layout; consumers must follow `detailFile`. The copied schemas describe canonical formats, not the generated index.
+Human documentation links canonical examples and shows parameter and response field tables. Only long parameter values and response fields are expandable; raw request recipes and capture header dumps are omitted. Agent index format **2** is a compact discovery manifest; load the `detailFile` for request definitions, full response variants, and example paths. JSON file references use the collection repository root as their base (`pathBase: repository-root`). This replaces the previous inline request/schema layout; consumers must follow `detailFile`. The copied schemas describe canonical formats, not the generated index.
 
 After upgrading from older exports, run `render --postman` before `test` and update imports or automation to the filenames above.
 
@@ -51,11 +59,11 @@ Replay requires matching recorded requests and exercising every canonical record
 
 ## Verification
 
-Run `npm run typecheck` and `npm run test:local` for focused CLI checks with synthetic fixtures. `npm test` builds the CLI first and also checks the shared schema contract, starter templates, complete workflow, and collection/template detection. Neither suite depends on application-specific endpoints or recordings. Both fail on empty suites.
+Run `npm run typecheck` and `npm run test:local` for focused CLI checks with synthetic fixtures. `npm test` builds the CLI first and also checks the shared schema contract, starter templates, complete workflow, collection root selection, and vendor isolation. Neither suite depends on application-specific endpoints or recordings. Both fail on empty suites.
 
-For a local capture compatibility check, run `npm run test:har -- "../../sources/capture.har"`. It creates a temporary collection from the empty starter templates, adds test-only origins and vocabulary, preserves all extracted recordings with stable filename suffixes, validates, compares extraction/render snapshots, replays every recording, independently checks capture fidelity, and checks baseline drift. It removes the temporary collection afterward and reports aggregate counts without capture values. This checks processing compatibility, not semantic classification; it does not import into `apis/` or modify source HAR files. Unsupported captures fail explicitly.
+For a local capture compatibility check, run `npm run test:har -- "/absolute/path/to/capture.har"`. It creates a temporary collection from the empty starter templates, adds test-only origins and vocabulary, preserves all extracted recordings with stable filename suffixes, validates, compares extraction/render snapshots, replays every recording, independently checks capture fidelity, and checks baseline drift. It removes the temporary collection afterward and reports aggregate counts without capture values. This checks processing compatibility, not semantic classification; it does not import into `apis/` or modify source HAR files. Unsupported captures fail explicitly.
 
-Run `npm run test:ablation` for controlled removals using synthetic data, or append `-- "../../sources/capture.har"` for local evidence. See [ablation results](test/ABLATIONS.md) and [data definitions](../../schema/README.md). Schemas establish structural validity; replay capability, capture fidelity, and semantic classification are separate checks. Omitted auth/type/requiredness remains absent; generated docs omit unknown-only columns and unknown auth.
+Run `npm run test:ablation` for controlled removals using synthetic data, or append `-- "/absolute/path/to/capture.har"` for local evidence. Use `--out /absolute/path/to/reports` to choose the report directory; defaults are collection `.reports/` or OS temporary storage when no collection is discovered. See [data definitions](../../schema/README.md). Schemas establish structural validity; replay capability, capture fidelity, and semantic classification are separate checks. Omitted auth/type/requiredness remains absent; generated docs omit unknown-only columns and unknown auth.
 
 Example filenames accept `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`. Existing names remain valid; use stable lowercase alphanumeric/hyphen suffixes for distinct recordings sharing an outcome. Validation checks request method and URL pathname against the owning definition. Drift uses observed HTTP/code pairs and reports ambiguous variant matches instead of choosing the first.
 
@@ -75,6 +83,6 @@ Generated docs contain endpoint identity, parameter observations, response field
 
 ## Host categories and artifact layout
 
-Canonical definitions live in `apis/<host>/<path>/`, with `endpoint.url` identifying the actual origin and path. Different hosts may maintain the same endpoint path independently. See the [canonical layout and migration guide](../../apis/README.md). Legacy path-only directories produce migration warnings; strict validation fails until they are moved.
+Canonical definitions live in `apis/<host>/<path>/`, with `endpoint.url` identifying the actual origin and path. Different hosts may maintain the same endpoint path independently. See the [canonical layout and migration guide](../../ARCHITECTURE.md#canonical-api-corpus). Legacy path-only directories produce migration warnings; strict validation fails until they are moved.
 
-Docs and agent details mirror that hierarchy under `dist/docs/endpoints/` and `dist/agent/endpoints/`, using `index.md` and `index.json` per endpoint. Shared indexes, usage documentation, and schema copies stay outside those endpoint directories. Postman groups recordings by host, then endpoint. Run `render --all` after upgrading and follow the generated index links; see the [distribution layout](../../dist/README.md).
+Docs and agent details mirror that hierarchy under `dist/docs/endpoints/` and `dist/agent/endpoints/`, using `index.md` and `index.json` per endpoint. Shared indexes, usage documentation, and schema copies stay outside those endpoint directories. Postman groups recordings by host, then endpoint. Run `render --all` after upgrading and follow the generated index links; see the [distribution layout](../../ARCHITECTURE.md#distribution-outputs).

@@ -15,8 +15,8 @@ export function serveCommand(): Command {
   return new Command('serve')
     .description('Serve canonical recordings locally until Ctrl+C')
     .option('--port <port>', 'Loopback port; 0 selects a free port', portNumber, 4010)
-    .action(async (options: { port: number }) => {
-      const corpus = loadCorpus(resolvePaths().root);
+    .action(async (options: { port: number }, command: Command) => {
+      const corpus = loadCorpus(resolvePaths(undefined, command.optsWithGlobals().root));
       if (!corpus.apis.some((api) => api.examples.length > 0)) {
         throw new Error('No canonical recordings are available. Classify captures before starting replay.');
       }

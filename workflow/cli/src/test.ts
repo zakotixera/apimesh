@@ -24,9 +24,9 @@ export function testCommand(): Command {
   return new Command('test')
     .description('Test generated Postman artifacts against local recordings')
     .option('--timeout <ms>', 'Per-request timeout in milliseconds', '10000')
-    .action(async (options: TestOptions) => {
-      const paths = resolvePaths();
-      const corpus = loadCorpus(paths.root);
+    .action(async (options: TestOptions, command: Command) => {
+      const paths = resolvePaths(undefined, command.optsWithGlobals().root);
+      const corpus = loadCorpus(paths);
       if (!corpus.apis.some((api) => api.examples.length > 0)) {
         throw new Error('No canonical recordings are available for replay');
       }

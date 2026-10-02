@@ -477,8 +477,8 @@ export function validateCommand(): Command {
     .description('Validate canonical JSON schemas and cross-references; write .reports/validate.json')
     .option('--strict', 'Treat warnings as failures')
     .option('--json', 'Print the report as JSON')
-    .action(async (options: ValidateOptions) => {
-      const paths = resolvePaths();
+    .action(async (options: ValidateOptions, command: Command) => {
+      const paths = resolvePaths(undefined, command.optsWithGlobals().root);
       const schemas = loadSchemas(paths);
       const issues = runChecks(paths, schemas);
 

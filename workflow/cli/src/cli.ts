@@ -12,6 +12,7 @@ async function main(): Promise<void> {
   program
     .name('apic')
     .description('Universal CLI for apimesh workflows (HAR -> canonical -> dist)')
+    .option('--root <directory>', 'Collection root (default: discover from working directory)')
     .version('0.1.0');
 
   program.addCommand(extractCommand());

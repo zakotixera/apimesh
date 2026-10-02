@@ -5,6 +5,6 @@ export default defineConfig({
   root: import.meta.dirname,
   test: {
     include: ['test/**/*.test.ts'],
-    exclude: ['test/schemas.test.ts', 'test/workflow.test.ts'],
+    exclude: ['test/schemas.test.ts', 'test/workflow.test.ts', 'test/vendor.test.ts'],
   },
 });

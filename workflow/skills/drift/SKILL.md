@@ -12,11 +12,11 @@ description: 结合新捕获与既有规范数据，评估 apic drift 报告中�
 1. 阅读 [共享契约](../references/contracts.md) 和本次 `.reports/drift-*.json`，确认任务范围是分析、提出修改建议或应用变更。分析任务仅输出结论，保持规范数据和版本不变。
 2. 阅读对应 definition、examples、`glossary.json`、`collection.json`。应用变更时遵循 [classify](../classify/SKILL.md) 的合并规则与兼容性限制。
 3. 查找产生报告的新捕获及其已脱敏 YAML。使用录制帧核实差异摘要；缺少证据时列出所需材料，保持 example、捕获时间和响应 body 未确定。
-4. 没有报告但用户提供 HAR 时，从 `workflow/cli` 运行 `npm run apic -- drift <实际 HAR 路径列表>`；首次构建按 [pipeline](../pipeline/SKILL.md) 准备。需要抽取证据时调用 extract，遵守 manifest 管理规则与批次范围。
+4. 没有报告但用户提供 HAR 时，从应用根目录运行 `node vendor/apimesh/workflow/cli/dist/cli.js --root . drift <实际 HAR 路径列表>`；首次构建按 [pipeline](../pipeline/SKILL.md) 准备。需要抽取证据时调用 extract，遵守 manifest 管理规则与批次范围。
 
 ## 理解当前报告
 
-当前结构定义在 `workflow/cli/src/lib/types.ts` 的 `DriftReport` / `DriftChange`：顶层有 `command`、`baseline`、`changes`、`breaking`、`nonBreaking`、`noise`；每条 change 有 `api`、`kind`、`summary`、`detail`。`baseline` 当前记录输入 HAR 文件名，不是旧 canonical 版本标识；应核对报告对应的 canonical 是否仍是当前版本。
+当前结构定义在工具链的 `workflow/cli/src/lib/types.ts` 的 `DriftReport` / `DriftChange`：顶层有 `command`、`baseline`、`changes`、`breaking`、`nonBreaking`、`noise`；每条 change 有 `api`、`kind`、`summary`、`detail`。`baseline` 当前记录输入 HAR 文件名，不是旧 canonical 版本标识；应核对报告对应的 canonical 是否仍是当前版本。
 
 报告结构以本地实现为准。CLI 发现差异时也可返回退出码 0；空 changes 仅表示当前规则未检测到差异。CLI 按 method/path 与录制样例中的 HTTP/code 组合匹配；没有样例时回退到声明数组。多个变体匹配时报告歧义，不按数组顺序猜测。值变化、缺失或二进制 body 仍需结合录制内容核查。
 

@@ -254,9 +254,9 @@ export function driftCommand(): Command {
     .command('drift <har...>')
     .description('Compare HAR captures with canonical definitions and write advisory drift reports')
     .option('--out <dir>', 'Report output directory (default: .reports)')
-    .action(async (hars: string[], options: DriftOptions) => {
-      const paths = resolvePaths();
-      const corpus = loadCorpus(paths.root);
+    .action(async (hars: string[], options: DriftOptions, command: Command) => {
+      const paths = resolvePaths(undefined, command.optsWithGlobals().root);
+      const corpus = loadCorpus(paths);
       const cfg = maskConfigFromCollection(corpus.collection);
       const sec = defaultSecurityMaskerConfig();
 

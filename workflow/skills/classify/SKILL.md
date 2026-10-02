@@ -23,7 +23,7 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 - `apis/<host>/<static path>/examples/<http>.<codeN|http-only>.<variant>[.<recording-id>].json`
 - `glossary.json` 中有证据支持的新语义域
 
-例如 `https://api.example.invalid/catalog/items` 对应 `apis/api.example.invalid/catalog/items/`；host 来自 URL，不使用 collection.bases 的标签。主机目录编码、根路径与迁移规则见 [规范目录说明](../../../apis/README.md)。`ok` 变体的 HTTP 200、业务码 0 样例名为 `200.code0.ok.json`。文件名第三段与 variant 保持一致。
+例如 `https://api.example.invalid/catalog/items` 对应 `apis/api.example.invalid/catalog/items/`；host 来自 URL，不使用 collection.bases 的标签。主机目录编码、根路径与迁移规则见 [规范目录说明](../../../ARCHITECTURE.md#canonical-api-corpus)。`ok` 变体的 HTTP 200、业务码 0 样例名为 `200.code0.ok.json`。文件名第三段与 variant 保持一致。
 
 ## 分类与合并
 
@@ -47,7 +47,7 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 
 ## 校验与交接
 
-按共享契约格式保存。独立调用时，从 `workflow/cli` 运行 `npm run apic -- validate`；由 pipeline 调用时交由其执行校验。修复本次引入的错误，报告已有错误和警告；保留有效样例、校验规则及 CLI 生成的报告。
+按共享契约格式保存。独立调用时，从应用根目录运行 `node vendor/apimesh/workflow/cli/dist/cli.js --root . validate`；由 pipeline 调用时交由其执行校验。修复本次引入的错误，报告已有错误和警告；保留有效样例、校验规则及 CLI 生成的报告。
 
 交接内容包括变更文件与接口、分类依据、复用或新增的 slug、未导入帧及原因，以及校验结果或待运行状态。校验通过说明已导入数据通过检查；所有目标帧均已处理且无未决项时，才报告分类完成。
 

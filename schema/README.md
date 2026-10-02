@@ -33,7 +33,7 @@ Human-readable templates label parameter `default` as **observed value**, omit u
 
 Schema-valid missing bodies and binary requests may be unsupported by the current replay exporter. Consumer limitations belong in tooling and diagnostics, not in application-specific schema exceptions. HAR bodies are already decoded; compression/header adaptation belongs in exports and replay, while canonical evidence is preserved.
 
-See the [ablation results and procedure](../workflow/cli/test/ABLATIONS.md) for evidence behind these boundaries.
+The [CLI verification guide](../workflow/cli/README.md#verification) describes capture-fidelity checks and controlled ablation experiments for these boundaries. Schemas are loaded from the pinned toolchain; application-local schema copies do not override them.
 
 ### Capture field alignment
 

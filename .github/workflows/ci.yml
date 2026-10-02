@@ -47,38 +47,8 @@ jobs:
       - name: Build and typecheck CLI
         run: npm run build
 
-      - name: Unit tests (vitest)
+      - name: CLI and vendor workflow tests (vitest)
         run: npm exec -- vitest run --passWithNoTests=false
-
-      - name: Detect template or collection
-        id: corpus
-        run: |
-          mode=$(node scripts/collection-mode.cjs)
-          echo "mode=$mode" >> "$GITHUB_OUTPUT"
-
-      - name: Validate canonical
-        if: steps.corpus.outputs.mode == 'collection'
-        run: npm run apic -- validate
-
-      - name: Check generated outputs and render stability
-        if: steps.corpus.outputs.mode == 'collection'
-        working-directory: ${{ github.workspace }}
-        run: |
-          for pass in 1 2; do
-            npm --prefix workflow/cli run apic -- render --all
-            # Unlike git diff alone, status also detects new generated files.
-            changes=$(git status --porcelain=v1 --untracked-files=all -- dist/)
-            if [[ -n "$changes" ]]; then
-              echo "::error::dist/ is out of sync after render pass $pass. Run render --all, then commit the generated consumer artifacts."
-              printf '%s\n' "$changes"
-              git diff --stat -- dist/
-              exit 1
-            fi
-          done
-
-      - name: Postman regression
-        if: steps.corpus.outputs.mode == 'collection'
-        run: npm run apic -- test
 
   # Preserve one stable required check regardless of the runtime matrix.
   gate:

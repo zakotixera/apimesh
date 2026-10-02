@@ -4,8 +4,8 @@ Read this file before applying a workflow skill. It defines shared responsibilit
 
 ## Paths and sources of truth
 
-- Repository paths in instructions (`apis/`, `schema/`, `.raw/`, `.reports/`, `sources/`, `dist/`, `collection.json`, `glossary.json`) are relative to the root containing both `collection.json` and `workflow/`.
-- Markdown links are relative to the file containing the link. The skills operate in a populated collection repository with its schemas, CLI, and related skills available.
+- Collection paths (`apis/`, `.raw/`, `.reports/`, `sources/`, `dist/`, `collection.json`, `glossary.json`) are relative to the application root containing both metadata files. `schema/` and `workflow/` belong to the pinned toolchain, usually `vendor/apimesh/`. Keep tooling changes upstream and collection edits in the application.
+- Markdown links are relative to the file containing the link. Skills may live inside vendor; Markdown links still refer to their own toolchain resources.
 - Follow the ownership rules below. Read the [classification instructions](../classify/SKILL.md) for semantic rules, the relevant [schemas](../../../schema/) for accepted fields, and [CLI documentation](../../cli/README.md) for commands and implementation limits. Load only the sections needed for the task.
 - If documentation, examples, schemas, or implementation disagree, report the discrepancy and its effect. Preserve capture evidence and validation requirements; format changes require corresponding schema and consumer updates within the task scope.
 
@@ -38,7 +38,7 @@ Pipeline coordinates these responsibilities and uses classify or drift for canon
 
 Use UTF-8 without BOM, LF, two-space JSON indentation, and a final newline. Use the data model's semantic field order; sort maps by key. Preserve semantic array order, keep observation arrays unique, and order example references by capture time. Variant `examples` is its last standard field.
 
-From `workflow/cli`, use the built local CLI through `npm run apic -- <command>`. Dependencies and build instructions are in the CLI documentation. Explicit input and output paths resolve from the current working directory; default artifact paths resolve from the repository root.
+From the application root, use `node vendor/apimesh/workflow/cli/dist/cli.js --root . <command>`, adapting the vendor path to the actual installation. Install and build with `npm --prefix vendor/apimesh/workflow/cli ci` and `npm --prefix vendor/apimesh/workflow/cli run build`. For external tooling, invoke its built CLI path with an explicit collection `--root`. Explicit input/output paths resolve from the current working directory; default artifacts resolve from the selected collection root. npm package scripts change the working directory, so prefer direct Node invocation for application-relative inputs.
 
 Resolve validation errors before reporting the affected operation complete. Report warnings; they block validation only in strict mode. Track import coverage separately from data validity. Local replay verifies recordings and generated assertions; live service behavior is outside its scope.
 

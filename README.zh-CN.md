@@ -2,7 +2,9 @@
 
 [English](README.md) | **简体中文**
 
-由 Agent 辅助维护 HTTP 录制数据、构建规范数据模型并生成可复现产物的工作流。
+可被其他项目 vendoring 的工具链，由 Agent 辅助维护 HTTP 录制数据、构建规范数据模型并生成可复现产物。
+
+应用将 apimesh 固定在 `vendor/apimesh/`，元数据、录制、规范 API 和生成产物归应用根目录所有。[ARCHITECTURE.md](ARCHITECTURE.md) 集中说明职责边界、路径解析和产物契约。
 
 ## 设计目标
 
@@ -71,64 +73,59 @@
 - 部分导入：分别列出已导入记录与待处理记录。
 - 数据漂移：应用更新前，区分破坏性变更、兼容性新增、无关波动和待确认差异。
 
-## 开发
+## 开发与使用
 
-创建特定应用的 API 合集，请参阅 [Fork 与开发指南](DEVELOPMENT.md)。
+创建应用 API 集合请阅读 [vendoring 与开发指南](DEVELOPMENT.md)。要求 Node.js **20+**、npm，以及能遵循工作流 skills 的 Agent。
 
-环境要求：Node.js **20+**、npm；语义分析阶段需要由 Agent 按仓库中的 skill 指令执行。
-
-从仓库根目录运行：
+在工具链的 `workflow/cli` 目录执行：
 
 ```sh
-cd workflow/cli
 npm ci
 npm run build
 npm run apic -- --help
-```
-
-在 `workflow/cli` 目录中运行 CLI 检查：
-
-```sh
 npm run typecheck
 npm test
 ```
 
-即使模板尚无应用数据，CI 也会测试完整的合成数据工作流。合集元数据起始模板位于 [`workflow/templates/`](workflow/templates/README.md)。运行 `npm run test:har -- "../../sources/capture.har"` 可在临时合集中检查真实 HAR 的处理兼容性与回放；该命令不导入规范数据，也不进行语义分类。
+应用安装并构建其固定版本后，从应用根目录运行：
 
-### 变更检查
+```sh
+node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
+node vendor/apimesh/workflow/cli/dist/cli.js --root . render --all
+node vendor/apimesh/workflow/cli/dist/cli.js --root . test
+```
 
-| 变更类型 | 检查与同步要求 |
+CLI 从自身安装目录加载 schema；省略 `--root` 时从当前目录向上发现集合。HAR 和显式 `--out` 路径相对于当前工作目录，默认产物相对于集合根目录。回放交互模式使用 `serve` 命令。
+
+CI 验证临时合成集合和 vendoring 集成，无需真实应用数据。可在 `workflow/cli` 运行 `npm run test:har -- "/absolute/path/to/capture.har"` 检查真实 HAR 的处理与回放兼容性；该检查不执行语义分类或导入。
+
+| 变更 | 必要检查 |
 |---|---|
-| 规范数据 | 校验、渲染、渲染稳定性验证、回放、审阅 |
-| CLI | 构建、运行相关测试及受影响的后续检查 |
-| 数据格式 | 同步更新 Schema、校验器、受影响的 skills 及数据使用方 |
-| 产物生成逻辑 | 修改规范数据源或渲染器后重新生成 |
-| 项目文档 | 保持中英文 README 内容一致 |
+| 规范数据 | 校验、渲染、重复渲染检查稳定性、回放和审阅 |
+| CLI | 构建、相关测试和受影响的下游检查 |
+| 数据格式 | 同步更新 schema、校验器、skills 和消费者 |
+| 生成行为 | 修改输入或渲染器，再重新生成 |
+| 项目文档 | 保持中英文 README 一致 |
 
-验证范围：数据结构一致性、生成结果可复现性、已提交产物与规范数据源的一致性，以及录制数据回放。回放检查不覆盖线上服务可用性或未录制的行为。
-
-在 `workflow/cli` 中运行 `npm run apic -- serve`，并在 Postman 中选择生成的本地回放环境，即可交互式回放。在线请求保留各自录制时的主机。参阅[产物指南](dist/README.md)了解使用方式。
+验证范围为结构一致性、可复现性、已提交产物同步和录制行为回放；不验证线上可用性或未观测行为。
 
 ## 项目结构
 
-| 路径 | 用途 |
+| 路径 | 职责 |
 |---|---|
-| `workflow/skills/` | 语义分析与流程编排指令 |
-| `workflow/cli/` | TypeScript 执行器、渲染器、回放服务、测试 |
-| `workflow/templates/` | 通过 Schema 校验的合集元数据起始模板 |
-| `schema/` | 规范数据的 JSON Schema |
-| `collection.json`、`glossary.json` | 共享元数据与词汇表 |
-| `sources/` | HAR 原始录制文件 |
-| `apis/<host>/<path>/` | 按主机分组的规范定义、样例与说明 |
-| `.raw/`、`.reports/` | 临时抽取稿与诊断信息 |
-| `dist/` | 面向不同使用方的生成产物，接口文件按主机分组 |
-| `workflow/cli/dist/` | CLI 编译结果 |
-| `.github/workflows/` | CI 配置 |
+| `workflow/skills/` | 语义工作与流程编排 |
+| `workflow/cli/` | TypeScript CLI、渲染器、回放服务与测试 |
+| `workflow/templates/` | 经过 schema 校验的空集合元数据 |
+| `schema/` | 规范数据 JSON Schema |
+| `ARCHITECTURE.md` | 应用集合布局、产物契约和职责边界 |
+| `workflow/cli/dist/` | 编译后的 CLI |
+| `.github/workflows/` | 工具链 CI |
 
 ## 文档
 
-- 工作流：[执行层](workflow/README.md)、[Agent skills](workflow/skills/README.md)。
-- 工具：[CLI 用法与限制](workflow/cli/README.md)、[CI](.github/workflows/ci.yml)。
+- [从零建立 apimesh-bilishow：中文操作指南](DEVELOPMENT.zh-CN.md)。
+- [执行层](workflow/README.md)、[skills](workflow/skills/README.md)。
+- [CLI 使用与限制](workflow/cli/README.md)、[CI](.github/workflows/ci.yml)。
 
 ## 许可证
 

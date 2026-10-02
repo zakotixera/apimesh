@@ -2,7 +2,9 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-Agent-assisted HTTP recording maintenance, canonical modeling, and reproducible output generation.
+A vendorable toolchain for agent-assisted HTTP recording maintenance, canonical modeling, and reproducible output generation.
+
+Applications pin apimesh under `vendor/apimesh/` and own their metadata, recordings, canonical APIs, and generated outputs at the application root. See [ARCHITECTURE.md](ARCHITECTURE.md) for ownership, path resolution, and artifact contracts.
 
 ## Design goals
 
@@ -73,7 +75,7 @@ Agent-assisted HTTP recording maintenance, canonical modeling, and reproducible 
 
 ## Development
 
-To create an application-specific API collection, follow the [fork and development guide](DEVELOPMENT.md).
+To create an application-specific API collection, follow the [vendoring and development guide](DEVELOPMENT.md).
 
 Requirements: Node.js **20+**, npm; an agent following the repository skills for semantic workflow stages.
 
@@ -86,6 +88,16 @@ npm run build
 npm run apic -- --help
 ```
 
+After installing and building a vendored toolchain, run from the application root:
+
+```sh
+node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
+node vendor/apimesh/workflow/cli/dist/cli.js --root . render --all
+node vendor/apimesh/workflow/cli/dist/cli.js --root . test
+```
+
+Schemas resolve from the executing toolchain. Omit `--root` to discover the collection from the working directory. Explicit HAR and `--out` paths remain relative to the working directory; default artifacts belong to the selected collection.
+
 CLI checks, from `workflow/cli`:
 
 ```sh
@@ -93,7 +105,7 @@ npm run typecheck
 npm test
 ```
 
-CI tests a complete synthetic workflow even in this unpopulated template. Collection metadata starters are in [`workflow/templates/`](workflow/templates/README.md). To check a real HAR in a temporary collection, run `npm run test:har -- "../../sources/capture.har"`; this checks processing and replay without importing or semantically classifying the recordings.
+CI tests a complete synthetic workflow against disposable collections. Collection metadata starters are in [`workflow/templates/`](workflow/templates/README.md). To check a real HAR in a temporary collection, run `npm run test:har -- "/absolute/path/to/capture.har"`; this checks processing and replay without importing or semantically classifying the recordings.
 
 ### Contribution checks
 
@@ -107,7 +119,7 @@ CI tests a complete synthetic workflow even in this unpopulated template. Collec
 
 Verification scope: structural consistency, reproducibility, committed-output synchronization, and recorded-behavior replay. Live availability and unobserved behavior are outside replay coverage.
 
-For interactive Postman replay, run `npm run apic -- serve` from `workflow/cli` and select the generated local replay environment. Each request preserves its recorded host for live use. The [artifact guide](dist/README.md) links consumer documentation.
+For interactive Postman replay, run `node vendor/apimesh/workflow/cli/dist/cli.js --root . serve` from the application root and select the generated local replay environment. Each request preserves its recorded host for live use. The [architecture guide](ARCHITECTURE.md#distribution-outputs) describes consumer artifacts.
 
 ## Project structure
 
@@ -117,16 +129,13 @@ For interactive Postman replay, run `npm run apic -- serve` from `workflow/cli` 
 | `workflow/cli/` | TypeScript executor, renderers, replay server, tests |
 | `workflow/templates/` | Schema-checked collection metadata starters |
 | `schema/` | Canonical JSON Schemas |
-| `collection.json`, `glossary.json` | Shared metadata and vocabulary |
-| `sources/` | HAR source recordings |
-| `apis/<host>/<path>/` | Canonical definitions, examples, notes grouped by host |
-| `.raw/`, `.reports/` | Temporary drafts and diagnostics |
-| `dist/` | Consumer bundles with host-grouped endpoint files |
+| `ARCHITECTURE.md` | Collection layout, artifact contracts and ownership |
 | `workflow/cli/dist/` | Compiled CLI code |
 | `.github/workflows/` | CI configuration |
 
 ## Documentation
 
+- [Chinese walkthrough: set up apimesh-bilishow](DEVELOPMENT.zh-CN.md).
 - Workflow: [execution layer](workflow/README.md), [skills](workflow/skills/README.md).
 - Tooling: [CLI usage and limitations](workflow/cli/README.md), [CI](.github/workflows/ci.yml).
 

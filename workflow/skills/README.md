@@ -11,7 +11,7 @@ Agent instructions for semantic analysis and workflow coordination in a populate
 
 Skills maintain canonical data and use the [CLI](../cli/README.md) for deterministic processing and artifact generation.
 
-Each skill begins with the [shared contracts](references/contracts.md), then reads the schemas and references needed for its task. The repository's CLI, schemas, and related skills must be available.
+Each skill begins with the [shared contracts](references/contracts.md), then reads the schemas and references needed for its task. The pinned toolchain supplies the CLI, schemas and related skills; the application supplies metadata and canonical data. Commands in skills assume `vendor/apimesh/` and the application working directory; adapt that vendor path to the actual installation.
 
 The example schema supports capture `bodyMeta` and optional recording suffixes for multiple observations of one outcome. Preserve JSON text and existing filenames. Missing bodies, uncaptured uploads, and conflicting methods or HTTP/HTTPS origins in one host/path directory still require explicit unresolved handling; report those observations alongside completed work.
 

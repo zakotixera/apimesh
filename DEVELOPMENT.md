@@ -1,199 +1,105 @@
-# Build an application API collection
+# Use and develop apimesh
 
-Fork apimesh to maintain recorded API behavior for a specific application. Add application metadata and HAR recordings, classify the observations into canonical definitions and examples, then generate documentation, Agent references, and Postman artifacts.
+apimesh supplies a reusable CLI, schemas, semantic skills and metadata starters. Each consuming repository owns its recordings, canonical data, vocabulary and generated artifacts. The complete layout and artifact contracts are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-The upstream repository supplies the CLI, schemas, skills, and directory structure. Your fork supplies `collection.json`, `glossary.json`, recordings under `sources/`, and the resulting application data. Collection commands require these inputs. CI always tests a synthetic collection; application validation, output synchronization, and replay run once collection metadata exists. Partially configured collections fail CI; an unpopulated fork is not a completed collection.
+## Vendor the toolchain
 
-## 1. Fork and clone
-
-On the apimesh GitHub page, select **Fork**, choose your account or organization, and give the fork an application-specific name such as `catalog-api-collection`. See [GitHub's fork instructions](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/fork-a-repo).
-
-Clone your fork and create a working branch. Replace `YOUR-OWNER`, `catalog-api-collection`, and `UPSTREAM-OWNER` with the actual repository names:
+Requirements: Git, Node.js **20+**, and npm. From an application repository, pin apimesh as a submodule:
 
 ```sh
-git clone https://github.com/YOUR-OWNER/catalog-api-collection.git
-cd catalog-api-collection
-git remote add upstream https://github.com/UPSTREAM-OWNER/apimesh.git
-git switch -c setup/collection
-git remote -v
+git submodule add https://github.com/ZakoTixera/apimesh.git vendor/apimesh
+git submodule update --init --recursive
+npm --prefix vendor/apimesh/workflow/cli ci
+npm --prefix vendor/apimesh/workflow/cli run build
+node vendor/apimesh/workflow/cli/dist/cli.js --help
 ```
 
-`origin` should point to your application collection; `upstream` should point to apimesh. Keep application data and collection changes in your fork. The upstream remote provides access to future tooling updates.
+A source copy or subtree also works. Keep `schema/` and `workflow/` together and retain the license. The CLI is distributed as source with this repository, not as a standalone npm package. Its compiled files alone are insufficient. Make changes to shared tooling upstream, then update the application's pinned revision.
 
-Install Git, Node.js **20+**, and npm. Use an agent that can read the repository's [workflow skills](workflow/skills/README.md) for classification and semantic review, or follow those instructions manually. Classification is not a CLI subcommand.
+## Initialize collection metadata
 
-## 2. Add collection metadata
+Copy `vendor/apimesh/workflow/templates/collection.json` and `glossary.json` to the application root. There is no initialization command. Create `sources/` for recordings; classification creates `apis/`, and CLI commands create their output directories when needed. Do not copy placeholder artifact trees into vendor.
 
-Copy the starter files from [`workflow/templates/`](workflow/templates/README.md) to the repository root, alongside `workflow/` and `schema/`, then customize them as shown below. The examples describe a synthetic catalog application; replace the name, host, authentication fields, and vocabulary with those relevant to your application.
-
-### `collection.json`
+Set the collection's `name`, semantic `version`, and `bases` (stable origin labels mapped to actual API origins). The optional `auth` registry declares header/cookie names to mask. Use the same actual name as both registry key and entry `name`, for example:
 
 ```json
 {
   "name": "Catalog API collection",
   "version": "0.1.0",
-  "bases": {
-    "web": "https://api.example.invalid"
-  },
+  "bases": { "web": "https://api.example.invalid" },
   "auth": {
-    "Authorization": {
-      "kind": "header",
-      "name": "Authorization",
-      "doc": "Authentication header, replaced with a placeholder in recordings."
-    },
     "SESSION_ID": {
       "kind": "cookie",
       "name": "SESSION_ID",
-      "doc": "Session cookie, replaced with a placeholder in recordings."
+      "doc": "Session cookie replaced by a placeholder in recordings."
     }
   },
   "changelog": []
 }
 ```
 
-| Field | How to use it |
-|---|---|
-| `name` | Application collection name used in generated outputs |
-| `version` | Semantic version of your collection |
-| `bases` | Origin labels mapped to API base URLs; capture host matching determines the example's `origin` |
-| `auth` | Optional registry of header and cookie names to mask; omit unused entries or the whole field |
-| `changelog` | Version history entries containing `version`, `date` (`YYYY-MM-DD`), and `notes`; an empty initial history is valid |
+Store descriptions, never credential values. Registered names also participate in query/body masking; generic redaction applies additional rules. Start with the empty glossary and add terms only when recordings establish meaning. Every canonical variant must reference a registered term; HTTP 200 or business code 0 alone does not establish success.
 
-Use actual header or cookie names as both the `auth` key and its `name`. The masker derives placeholders such as `{{SESSION_ID}}` from `name`, while validation checks registration keys. Store descriptions here, never credential values. Registered names also participate in query and body masking; the CLI applies additional generic redaction rules.
+Add these patterns to the application's `.gitignore`:
 
-Add each API host to `bases` with a stable label. An explicit `extract --origin` value should match one of these labels. Postman preserves each recorded origin with a separate base URL variable. The local replay environment overrides those variables through request scripts when `apicReplay=true`.
-
-The full contract is in [collection.schema.json](schema/collection.schema.json).
-
-### `glossary.json`
-
-```json
-{
-  "domains": [
-    {
-      "slug": "ok",
-      "meaning": "The requested operation completed successfully."
-    }
-  ]
-}
+```gitignore
+.raw/
+.reports/
+node_modules/
+vendor/apimesh/workflow/cli/dist/
 ```
 
-The [glossary schema](schema/glossary.schema.json) permits an empty vocabulary while a collection is being initialized. Add semantic terms as recordings establish their meaning; every canonical variant must reference a registered term. Slugs use lowercase letters, digits, and hyphens. Optional `known-codes` and `http-shapes` arrays provide classification hints; leave them out until supported by evidence. A response is not classified as successful solely because it has HTTP 200 or business code 0.
+Track reviewed `sources/`, `collection.json`, `glossary.json`, `apis/`, and generated collection `dist/`. The root `dist/` is distinct from compiled CLI code inside vendor.
 
-Keep the existing `workflow/` and `schema/` directories. The CLI locates the collection root by finding both `collection.json` and `workflow/`; there is no initialization command that creates these files.
+## Run against a collection
 
-## 3. Build and check the CLI
-
-From the repository root:
+Run commands from the application root:
 
 ```sh
-cd workflow/cli
-npm ci
-npm run build
-npm run apic -- --help
-npm exec -- vitest run --passWithNoTests=false
-npm run apic -- validate
+node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
+node vendor/apimesh/workflow/cli/dist/cli.js --root . extract "sources/catalog-list.har" "sources/catalog-missing.har" --account test-account
 ```
 
-Run each command only after the preceding command succeeds. Validation at this stage checks your metadata and any existing canonical data. It does not establish that an API collection is complete. Replay requires canonical recordings and will fail while none exist.
+Replace the sample HAR names with actual files. `--root` targets exactly that directory and requires both metadata files. It never falls back to a parent. Without `--root`, the CLI discovers the nearest collection from the current directory, including when run inside a vendored CLI directory. Templates are excluded. An incomplete nested collection fails rather than selecting a parent collection.
 
-Subsequent CLI commands in this guide run from `workflow/cli`. Relative input paths and explicit `--out` paths resolve from that directory. Default output paths resolve from the repository root.
+Input paths and explicit `--out` paths resolve from the caller's working directory, even with `--root`. Defaults resolve under the collection. `npm --prefix ... run apic` changes the working directory to the CLI package; use the direct `node` invocation above when supplying application-relative paths. An optional application package script can wrap that invocation.
 
-## 4. Record application traffic
+Keep private originals outside published repositories. Review HAR files before committing: extraction writes masked drafts without changing originals, and arbitrary text or binary bodies may still contain sensitive data.
 
-Record requests and responses using browser developer tools or another HAR-compatible recorder. Capture the application actions you intend to document, including relevant successful and unsuccessful outcomes. Include request and response bodies where available, and keep capture timestamps.
-
-Place the HAR files in the root `sources/` directory with distinct names, for example:
-
-```text
-sources/
-  catalog-list.har
-  catalog-item-missing.har
-```
-
-Review source files before committing them. `sources/` is tracked, and extraction writes masked copies without changing the original HAR. Automatic masking does not guarantee removal of sensitive content from arbitrary text or binary bodies. Keep private originals outside the published repository; add only recordings reviewed for sharing, and preserve those source files during subsequent processing.
-
-## 5. Extract and classify
-
-Pass every HAR in the intended batch to one extraction command:
+Pass every HAR in an intended batch to one extraction call. Extraction replaces its manifest-managed set; separate calls do not accumulate drafts. The CLI does not expand globs. If existing drafts are edited or unowned, preserve them and choose a fresh directory:
 
 ```sh
-npm run apic -- extract "../../sources/catalog-list.har" "../../sources/catalog-item-missing.har" --account test-account
+node vendor/apimesh/workflow/cli/dist/cli.js --root . extract "sources/catalog-list.har" --out .raw/import-02
 ```
 
-`--account` is a non-sensitive label describing the recording context. It does not supply authentication. The command writes grouped YAML drafts into root `.raw/` and an extraction report into `.reports/`.
+## Classify recorded behavior
 
-Each extraction replaces the set of files managed by its output manifest. Supply the whole batch in one call; separate calls do not accumulate drafts. The CLI expects explicit file paths and does not expand globs.
+Ask an agent to follow `vendor/apimesh/workflow/skills/classify/SKILL.md` for the actual draft directory, or `pipeline/SKILL.md` for the complete workflow. State the input scope and whether the result should remain local or become a PR. The same instructions can be followed manually. Classification is a semantic stage, not a CLI subcommand.
 
-If a draft has been edited or lacks a valid ownership manifest, preserve it and use a fresh output directory:
+Definitions and examples belong at `apis/<host>/<path>/`, using actual URL hosts, globally unique API IDs, and stable variant slugs. See [canonical layout](ARCHITECTURE.md#canonical-api-corpus) for host escaping, filenames and legacy migration. Different methods or HTTP/HTTPS origins at one host/path still require a modeling decision; preserve conflicting evidence and report unresolved frames.
+
+Preserve JSON text, body metadata, HTTP metadata and existing recording names. Distinct recordings of one outcome use stable filename suffixes; identical examples can be reused. Missing bodies, binary requests and uncaptured uploads may prevent replay. Do not invent observations to complete an import. Optional notes must be grounded in evidence.
+
+## Verify collection changes
+
+After classification, run:
 
 ```sh
-npm run apic -- extract "../../sources/catalog-list.har" "../../sources/catalog-item-missing.har" --account test-account --out ../../.raw/import-02
+node vendor/apimesh/workflow/cli/dist/cli.js --root . validate
+node vendor/apimesh/workflow/cli/dist/cli.js --root . render --all
+node vendor/apimesh/workflow/cli/dist/cli.js --root . test
 ```
 
-Use an unused directory name and give that exact directory to the classification step.
-
-Ask your agent to follow [classify](workflow/skills/classify/SKILL.md), for example:
-
-> Follow workflow/skills/classify/SKILL.md to classify the current drafts in .raw/ for this application. Preserve recorded evidence, use collection.json and glossary.json, and report unresolved observations. Run validation after applying supported changes. Keep the results local.
-
-Alternatively, after adding the metadata and HAR files, ask the agent to follow [pipeline](workflow/skills/pipeline/SKILL.md) for extraction through verification in one task. Specify the HAR paths and whether you want local results or a PR in your fork.
-
-**Body preservation:** the canonical schema accepts extraction's `bodyMeta`. Keep captured JSON as text and retain metadata so numeric literals, empty bodies, and missing captures remain distinguishable. Missing request/response bodies, binary requests, and uncaptured multipart uploads cannot complete replay; retain those drafts and report partial completion instead of inventing content.
-
-Before semantic classification, you can check a capture in an isolated temporary collection with `npm run test:har -- "../../sources/capture.har"`. This validates processing compatibility and replay without changing your canonical data or claiming to classify response meanings.
-
-Classification creates application data such as:
-
-```text
-apis/
-  api.example.invalid/
-    catalog/
-      items/
-        definition.json
-        examples/
-          200.code0.ok.json
-        notes.md
-```
-
-This layout is illustrative; create definitions and examples only from your application's evidence. For `https://api.example.invalid/catalog/items`, the definition belongs in `apis/api.example.invalid/catalog/items/`. Set `endpoint.url` to that absolute URL; directory placement is checked against its host and path. See the [canonical layout guide](apis/README.md) for ports, IPv6, root endpoints, and migration. Each definition has a unique dotted API identifier, structured `endpoint.method`, `endpoint.path`, and `endpoint.url`, a source description, and semantic response variants. Each variant references glossary terms and recorded examples. Example filenames follow `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`; use `http-only` when the business code is `null`. A stable lowercase alphanumeric/hyphen suffix allows multiple recordings of the same outcome, for example `200.code0.ok.capture-a.json`. Keep existing filenames and references stable.
-
-The current model supports one definition per host/path directory. Different hosts use separate directories and globally unique API identifiers. Conflicting methods or HTTP/HTTPS origins on the same host/path still need a modeling decision before import. Preserve both inputs and report such conflicts. Distinct recordings of one outcome use separate recording suffixes; reuse identical examples without overwriting.
-
-Use the optional [notes](workflow/skills/notes/SKILL.md) skill for brief explanations grounded in definitions and examples. Schemas and detailed merge rules remain in [schema/](schema/) and the classification instructions.
-
-## 6. Validate, generate, and replay
-
-After supported observations have been classified, run from `workflow/cli`:
-
-```sh
-npm run apic -- validate
-npm run apic -- render --all
-npm run apic -- test
-```
-
-Resolve validation errors before continuing. Review warnings; use `validate --strict` if warnings should fail the check. Rendering generates these root directories:
-
-| Directory | Output |
-|---|---|
-| `dist/docs/` | `endpoints/<host>/<path>/index.md`, `summary.md`, and `usage.md` |
-| `dist/agent/` | `endpoints/<host>/<path>/index.json`, shared indexes, and schema copies |
-| `dist/postman/` | `endpoints.postman_collection.json` and `replay.postman_environment.json` |
-
-Edit canonical inputs or renderer source, then regenerate outputs. `apic test` starts a local replay server, checks generated requests against recordings, and shuts the server down. It requires every canonical recording to be exercised. Passing replay does not verify live application availability.
-
-For interactive Postman replay, run `npm run apic -- serve` and leave it running. Import the generated collection and local replay environment, select that environment, and send a recording. Stop with Ctrl+C. If using `serve --port 4011`, update the environment's `baseUrl` accordingly. The generated `dist/docs/usage.md` explains live setup and masked request values. Agent index format 2 links separate endpoint detail files; JSON paths are repository-relative.
-
-Also verify that two renders produce the same file paths and bytes, including untracked files. For example, in PowerShell from `workflow/cli`, after the first render:
+Resolve validation errors, retain warnings in the handoff, and use `validate --strict` when warnings should fail. Render again and compare every generated path and byte, including untracked files. For example, in PowerShell after the first render:
 
 ```powershell
 function Get-OutputSnapshot {
-  Get-ChildItem -LiteralPath '../../dist/docs', '../../dist/agent', '../../dist/postman' -File -Recurse |
+  Get-ChildItem -LiteralPath 'dist/docs', 'dist/agent', 'dist/postman' -File -Recurse |
     Sort-Object FullName |
     ForEach-Object { $_.FullName + ' ' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
 }
 $beforeRender = @(Get-OutputSnapshot)
-npm run apic -- render --all
+node vendor/apimesh/workflow/cli/dist/cli.js --root . render --all
 if ($LASTEXITCODE -ne 0) { throw 'Render failed' }
 $afterRender = @(Get-OutputSnapshot)
 if (Compare-Object -ReferenceObject $beforeRender -DifferenceObject $afterRender) {
@@ -201,44 +107,33 @@ if (Compare-Object -ReferenceObject $beforeRender -DifferenceObject $afterRender
 }
 ```
 
-Expected new output may differ from Git HEAD during an import. Compare consecutive renders for determinism; compare against committed output for repository synchronization.
+Application CI should check out submodules, install/build the pinned CLI, validate, render twice, check `git status --porcelain=v1 --untracked-files=all -- dist/` after each render, and replay. This checks committed-output synchronization in addition to render determinism. Upstream [CI](.github/workflows/ci.yml) tests the toolchain with disposable synthetic collections; it does not validate downstream application data.
 
-## 7. Review and publish the collection
+`test` exercises every canonical recording with Newman against a temporary local server. It does not test live service availability. For interactive Postman use, run `serve`, import the generated collection and replay environment, and keep the server running. Use `serve --port 4011` and update the environment's `baseUrl` when needed. Generated `dist/docs/usage.md` describes live setup separately.
 
-Return to the repository root with `cd ../..`. Review the source recordings, metadata, canonical data, and generated outputs. Update your fork's README with the application scope, recording context, and links to its generated documentation.
+Review source evidence, canonical changes and artifacts before staging specific files. A completed import has no unresolved target frames and passes validation, stability and replay checks. Report partial imports as partial; successful checks on accepted frames do not prove full coverage.
 
-Stage the intended files explicitly. For the example batch:
+## Maintain and upgrade
 
-```sh
-git add collection.json glossary.json apis/ dist/ sources/catalog-list.har sources/catalog-item-missing.har
-git diff --cached --stat
-git diff --cached
-git diff --cached --check
-```
+Add later captures as new source files. Compare them with `node vendor/apimesh/workflow/cli/dist/cli.js --root . drift "sources/catalog-update.har"`, then follow the vendored drift skill to interpret reports. Exit code 0 means comparison completed, not that no behavior changed. Apply only supported changes in scope, update collection version history as appropriate, and repeat the checks.
 
-Stage README changes separately if made. Keep `.raw/`, `.reports/`, `workflow/cli/dist/`, and `node_modules/` out of commits; they are temporary or regenerable local outputs.
+For an existing fork, preserve root metadata, sources, APIs and artifacts. Add the pinned toolchain under vendor, update scripts/CI/agent references, and remove old root `workflow/` and `schema/` copies once their local tooling changes have been reconciled upstream. Update links to deleted directory READMEs to [ARCHITECTURE.md](ARCHITECTURE.md) in the vendored checkout. Custom application schemas do not override the pinned toolchain schemas. No canonical format change is required for vendoring itself.
 
-Once review and the required checks pass:
+Upgrade by selecting a reviewed vendor revision, reinstalling dependencies and rebuilding, then validating, regenerating, checking stability and replaying the application. Commit the vendor pin and any regenerated artifacts together after review.
 
-```sh
-git commit -m "feat: add initial catalog API collection"
-git push -u origin setup/collection
-```
+## Develop the toolchain
 
-Open the PR against your application's fork and confirm its base repository. Enable GitHub Actions in the fork if needed. The [CI workflow](.github/workflows/ci.yml) builds and tests the CLI on Node 20, 22, and 24 on Ubuntu. The synthetic workflow runs for both templates and collections. Populated collections also validate canonical data, render twice, check committed output synchronization, and run replay. Its `gate` job succeeds only when every runtime passes. Adding HAR files alone is insufficient: classification and committed generated artifacts must also be complete.
-
-A completed import has no unresolved target frames, passes validation and replay, produces stable output, and includes the reviewed data and artifacts in the commit. If only a supported subset was imported, list the remaining drafts and blockers in the PR.
-
-## 8. Maintain the application collection
-
-Add later captures as new source files. Repeat the import process for new observations, preserving stable API identifiers, semantic slugs, and existing recordings.
-
-To compare a new capture with the current canonical data, run from `workflow/cli`:
+From this repository's `workflow/cli`:
 
 ```sh
-npm run apic -- drift "../../sources/catalog-update.har"
+npm ci
+npm run build
+npm run typecheck
+npm test
 ```
 
-Use [drift](workflow/skills/drift/SKILL.md) to assess `.reports/drift-*.json` against the recordings. Exit code 0 means the command completed; it does not mean no behavior changed. Apply supported changes within the task scope, update collection version history according to your release policy, and repeat validation, rendering, stability checks, and replay.
+The full suite includes schemas, template validity, extraction, drift, deterministic rendering, replay and vendor isolation. To check a real HAR without importing or semantically classifying it, run `npm run test:har -- "/absolute/path/to/capture.har"`. The harness creates and removes a temporary collection and checks processing compatibility and capture fidelity.
 
-When incorporating upstream tooling changes, review schema and CLI compatibility with your application data, run `npm ci` if dependencies changed, rebuild, and repeat the same checks before publishing updated outputs.
+`npm run test:ablation -- --out "/absolute/path/to/reports"` runs controlled removals in temporary toolchain copies. Without `--out`, reports go to the discovered collection's `.reports/`, or OS temporary storage when developing the standalone toolchain. It never uses vendor as the default report destination.
+
+Change schema, validators, affected skills and consumers together when evolving data formats. Keep English and Chinese READMEs aligned. Change renderers or canonical inputs and regenerate; never repair generated artifacts by hand.
