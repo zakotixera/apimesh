@@ -9,6 +9,7 @@ const { parse } = require('yaml');
 const { stableStringify } = require('../dist/lib/stable-json');
 const { bodyForAnalysis } = require('../dist/lib/body');
 const { walk } = require('../dist/lib/fsx');
+const { endpointDirectory } = require('../dist/lib/api-layout');
 const { captureFidelity } = require('./lib/capture-fidelity.cjs');
 const { validationProbes } = require('./lib/validation-probes.cjs');
 
@@ -65,40 +66,43 @@ function checkHar(inputs) {
     const expectedCaptures = new Map();
     for (const file of walk(path.join(root, '.raw'), (file) => file.endsWith('.yaml'))) {
       for (const endpoint of parse(fs.readFileSync(file, 'utf8')).endpoints) {
-        const segments = endpoint.path.slice(1).split('/');
+        const segments = endpoint.path === '/' ? [] : endpoint.path.slice(1).split('/');
         if (segments.some((segment) => !segment || /[<>:"\\|?*]/.test(segment) || segment === '.' || segment === '..' || /[. ]$/.test(segment))) {
           throw new Error('Endpoint path cannot be represented by the current directory model');
         }
-        const dir = path.join('apis', ...segments);
-        if (directories.has(dir)) throw new Error('Multiple methods share a canonical directory');
-        directories.add(dir);
-        const hosts = new Set(endpoint.frames.map((frame) => new URL(frame.request.url).host));
-        if (hosts.size > 1) throw new Error('Multiple hosts share a canonical endpoint; semantic adjudication is required');
-        const names = [];
-        const tuples = new Set();
-        const types = new Set();
-        for (const frame of endpoint.frames) {
-          const tuple = `${frame.http}.${frame.code === null ? 'http-only' : `code${frame.code}`}.observed`;
-          if (tuples.has(tuple)) additionalRecordings += 1;
-          tuples.add(tuple);
-          const name = `${tuple}.${hash(stableStringify(frame)).slice(0, 16)}.json`;
-          const target = path.join(dir, 'examples', name);
-          if (fs.existsSync(path.join(root, target))) throw new Error('Recording identifier collision');
-          names.push(name);
-          expectedCaptures.set(name, structuredClone(frame));
-          write(target, frame);
-          const body = bodyForAnalysis(frame.response);
-          types.add(body === null ? 'null' : Array.isArray(body) ? 'array' : typeof body);
-          recordings += 1;
+        const origins = [...new Set(endpoint.frames.map((frame) => new URL(frame.request.url).origin))];
+        for (const origin of origins) {
+          const frames = endpoint.frames.filter((frame) => new URL(frame.request.url).origin === origin);
+          const url = `${origin}${endpoint.path}`;
+          const dir = path.join('apis', endpointDirectory(url));
+          if (directories.has(dir)) throw new Error('Multiple methods or origins share a canonical directory');
+          directories.add(dir);
+          const names = [];
+          const tuples = new Set();
+          const types = new Set();
+          for (const frame of frames) {
+            const tuple = `${frame.http}.${frame.code === null ? 'http-only' : `code${frame.code}`}.observed`;
+            if (tuples.has(tuple)) additionalRecordings += 1;
+            tuples.add(tuple);
+            const name = `${tuple}.${hash(stableStringify(frame)).slice(0, 16)}.json`;
+            const target = path.join(dir, 'examples', name);
+            if (fs.existsSync(path.join(root, target))) throw new Error('Recording identifier collision');
+            names.push(name);
+            expectedCaptures.set(name, structuredClone(frame));
+            write(target, frame);
+            const body = bodyForAnalysis(frame.response);
+            types.add(body === null ? 'null' : Array.isArray(body) ? 'array' : typeof body);
+            recordings += 1;
+          }
+          write(path.join(dir, 'definition.json'), {
+            api: `capture.endpoint-${++endpoints}`, name: 'Observed endpoint',
+            endpoint: { method: endpoint.method, path: endpoint.path, url }, source: 'Isolated HAR compatibility check',
+            responses: [{ variant: 'observed', status: 'Recorded outcome; semantics not classified',
+              codes: [...new Set(frames.map((frame) => frame.code).filter((code) => code !== null))],
+              http: [...new Set(frames.map((frame) => frame.http))],
+              schema: { type: [...types].sort() }, examples: names }],
+          });
         }
-        write(path.join(dir, 'definition.json'), {
-          api: `capture.endpoint-${++endpoints}`, name: 'Observed endpoint',
-          endpoint: { method: endpoint.method, path: endpoint.path }, source: 'Isolated HAR compatibility check',
-          responses: [{ variant: 'observed', status: 'Recorded outcome; semantics not classified',
-            codes: [...new Set(endpoint.frames.map((frame) => frame.code).filter((code) => code !== null))],
-            http: [...new Set(endpoint.frames.map((frame) => frame.http))],
-            schema: { type: [...types].sort() }, examples: names }],
-        });
       }
     }
     run('validate', '--strict');

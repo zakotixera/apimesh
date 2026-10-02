@@ -1,8 +1,9 @@
 import { readText } from '../lib/fsx';
+import { agentFile, apiHost, docsFile } from '../lib/api-layout';
 import type { LoadedCorpus } from '../lib/canonical';
 import type { GeneratedFile } from '../lib/types';
 import { stableStringify } from '../lib/stable-json';
-import { definitionPath, examplePath, origins, parameterDescription, recordingLabel } from './presentation';
+import { definitionPath, examplePath, linkFrom, origins, parameterDescription, recordingLabel } from './presentation';
 
 const SCHEMA_FILES = ['collection.schema.json', 'definition.schema.json', 'example.schema.json', 'glossary.schema.json'];
 
@@ -19,11 +20,11 @@ export function renderAgent(corpus: LoadedCorpus): GeneratedFile[] {
         const description = parameterDescription(desc);
         return [name, { ...fields, ...(description ? { desc: description } : {}) }];
       }))]));
-    const detailFile = `agent/endpoints/${def.api}.json`;
+    const detailFile = agentFile(api);
     const entry = {
       api: def.api, name: def.name, method: def.endpoint.method, path: def.endpoint.path, ...(def.endpoint.url ? { url: def.endpoint.url } : {}),
-      origins: origins(api), tags: def.tags ?? [], ...(def.auth === undefined ? {} : { auth: def.auth }),
-      detailFile: `dist/${detailFile}`, definitionFile: definitionPath(api), docsFile: `dist/docs/${api.relDir}.md`,
+      host: apiHost(api), origins: origins(api), tags: def.tags ?? [], ...(def.auth === undefined ? {} : { auth: def.auth }),
+      detailFile: `dist/${detailFile}`, definitionFile: definitionPath(api), docsFile: `dist/${docsFile(api)}`,
       variants: def.responses.map((v) => ({ variant: v.variant, status: v.status, codes: v.codes, http: v.http, recordings: v.examples?.length ?? 0 })),
     };
     details.push({ path: detailFile, content: stableStringify({
@@ -46,7 +47,7 @@ export function renderAgent(corpus: LoadedCorpus): GeneratedFile[] {
   for (const api of apis) {
     const def = api.definition;
     summary.push(`## ${def.name} (\`${def.api}\`)`, '', `\`${def.endpoint.method} ${def.endpoint.url ?? def.endpoint.path}\`${def.auth === undefined ? '' : ` · auth \`${def.auth}\``}`, '',
-      `[Endpoint details](endpoints/${def.api}.json) · [Human documentation](../docs/${api.relDir}.md)`, '',
+      `[Endpoint details](${linkFrom('agent/summary.md', `dist/${agentFile(api)}`)}) · [Human documentation](${linkFrom('agent/summary.md', `dist/${docsFile(api)}`)})`, '',
       ...def.responses.map((v) => `- \`${v.variant}\` — ${v.status} (codes ${v.codes.join(', ') || 'HTTP-only'}; HTTP ${v.http.join(', ')})`), '');
   }
   return [{ path: 'agent/index.json', content: stableStringify(index) }, { path: 'agent/summary.md', content: summary.join('\n') }, ...details,

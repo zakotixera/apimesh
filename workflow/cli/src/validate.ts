@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { endpointDirectory } from './lib/api-layout';
 import { stableStringify } from './lib/stable-json';
 import { Command } from 'commander';
 import { loadCollection, loadGlossary } from './lib/canonical';
@@ -198,25 +199,32 @@ function runChecks(paths: ProjectPaths, schemas: SchemaValidators): Issue[] {
       }
     }
 
-    // Check endpoint directory placement.
-    const expectedPath = `/${api.relDir}`;
-    if (def.endpoint?.path !== expectedPath) {
-      issues.push({
-        severity: 'error',
-        code: 'path-mismatch',
-        message: `endpoint.path (${def.endpoint?.path}) does not match its directory (${expectedPath})`,
-        file: api.relFile,
-        path: 'endpoint.path',
-      });
-    }
+    let expectedDir: string | undefined;
     if (def.endpoint.url) {
       try {
+        expectedDir = endpointDirectory(def.endpoint.url);
         if (new URL(def.endpoint.url).pathname !== def.endpoint.path) {
           issues.push({ severity: 'error', code: 'endpoint-url-path-mismatch', message: 'endpoint.url and endpoint.path must identify the same path', file: api.relFile });
         }
       } catch {
         issues.push({ severity: 'error', code: 'endpoint-url-invalid', message: 'endpoint.url is not a valid HTTP(S) URL', file: api.relFile });
       }
+    }
+    // Check endpoint directory placement.
+    const legacy = def.endpoint.path === `/${api.relDir}`;
+    if (expectedDir !== api.relDir && legacy) {
+      issues.push({ severity: 'warning', code: 'legacy-api-directory',
+        message: expectedDir ? `Move this endpoint to apis/${expectedDir}/ and regenerate dist` :
+          'Add endpoint.url from recorded evidence, move this endpoint to apis/<host>/<path>/, and regenerate dist', file: api.relFile });
+    } else if (expectedDir !== api.relDir) {
+      issues.push({
+        severity: 'error',
+        code: 'path-mismatch',
+        message: expectedDir ? `Endpoint belongs in apis/${expectedDir}/, not apis/${api.relDir}/` :
+          'Host directories require endpoint.url to verify the host and path',
+        file: api.relFile,
+        path: 'endpoint.path',
+      });
     }
 
     // Warn about unregistered placeholders in defaults and headers.

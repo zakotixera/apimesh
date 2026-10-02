@@ -126,7 +126,7 @@ interface PostmanRequestItem {
 
 interface PostmanFolder {
   name: string;
-  item: PostmanRequestItem[];
+  item: Array<PostmanRequestItem | PostmanFolder>;
 }
 
 /** Convert headers to Postman entries in deterministic key order. */
@@ -309,21 +309,32 @@ export function renderPostman(corpus: LoadedCorpus): GeneratedFile[] {
     baseVariables.set(origin, key);
   }
 
-  const folders: PostmanFolder[] = [...corpus.apis]
+  const hostFolders = new Map<string, PostmanFolder[]>();
+  [...corpus.apis]
     .sort((a, b) => compareCodepoint(a.definition.api, b.definition.api))
-    .map((api) => {
+    .forEach((api) => {
       const variantByExample = new Map<string, Variant>();
       for (const variant of api.definition.responses) {
         for (const exampleName of variant.examples ?? []) {
           variantByExample.set(exampleName, variant);
         }
       }
-      const items = api.examples
+      const byHost = new Map<string, PostmanRequestItem[]>();
+      api.examples
         .filter((ex) => variantByExample.has(ex.name))
-        .map((ex, index) => toRequestItem(ex, api.definition, variantByExample.get(ex.name) as Variant,
-          baseVariables.get(new URL(ex.data.request.url).origin)!, recordingLabel(ex, index), examplePath(api, ex)))
-        .sort((a, b) => compareCodepoint(a.name, b.name));
-      return { name: `${api.definition.name} (${api.definition.api})`, item: items };
+        .forEach((ex, index) => {
+          const url = new URL(ex.data.request.url);
+          const items = byHost.get(url.host) ?? [];
+          items.push(toRequestItem(ex, api.definition, variantByExample.get(ex.name) as Variant,
+            baseVariables.get(url.origin)!, recordingLabel(ex, index), examplePath(api, ex)));
+          byHost.set(url.host, items);
+        });
+      for (const [host, items] of byHost) {
+        const folders = hostFolders.get(host) ?? [];
+        folders.push({ name: `${api.definition.endpoint.method} ${api.definition.endpoint.path} · ${api.definition.name} (${api.definition.api})`,
+          item: items.sort((a, b) => compareCodepoint(a.name, b.name)) });
+        hostFolders.set(host, folders);
+      }
     });
 
   const postmanCollection = {
@@ -333,7 +344,7 @@ export function renderPostman(corpus: LoadedCorpus): GeneratedFile[] {
       schema: POSTMAN_SCHEMA,
       description: 'Select the replay environment for local recordings. For live requests, set apicReplay=false and supply your own values. Setup: ../docs/usage.md.',
     },
-    item: folders,
+    item: [...hostFolders].sort(([a], [b]) => compareCodepoint(a, b)).map(([name, item]) => ({ name, item })),
     variable: [...baseVariables].map(([origin, key]) => ({ key, value: origin, type: 'string' })),
   };
 

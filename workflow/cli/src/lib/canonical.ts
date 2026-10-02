@@ -17,7 +17,7 @@ export interface LoadedApi {
   file: string;
   relFile: string;
   dir: string;
-  /** Directory relative to apis, such as catalog/items/get. */
+  /** Directory relative to apis, such as api.example.invalid/catalog/items. */
   relDir: string;
   definition: Definition;
   /** Examples ordered by filename. */

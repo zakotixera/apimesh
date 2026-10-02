@@ -24,7 +24,7 @@ describe('artifact navigation and progressive disclosure', () => {
       empty: {},
     }, headers: { Cookie: 'session={{SESSION_ID}}' } };
     def.responses[0].headers = { 'x-trace-id': 'capture-only' };
-    const page = renderDocs(data).find((f) => f.path === 'docs/nested/path/x.md')!.content;
+    const page = renderDocs(data).find((f) => f.path === 'docs/endpoints/example.invalid/x/index.md')!.content;
     expect(page).toContain('Pagination cursor');
     expect(page).not.toMatch(/requiredness|unknown|Observed q value|session=|capture-only|recipe/);
     expect(page).not.toContain('| required |');
@@ -41,7 +41,7 @@ describe('artifact navigation and progressive disclosure', () => {
   it('resolves evidence links without duplicating raw requests', () => {
     const data = fixture();
     const files = renderDocs(data);
-    const page = files.find((f) => f.path === 'docs/nested/path/x.md')!;
+    const page = files.find((f) => f.path === 'docs/endpoints/example.invalid/x/index.md')!;
     const links = [...page.content.matchAll(/\]\(([^)]+)\)/g)].map((m) => m[1]).filter((p) => !p.startsWith('#'));
     const targets = links.map((p) => path.posix.normalize(path.posix.join('dist', path.posix.dirname(page.path), p)));
     expect(targets).toContain('dist/docs/summary.md');

@@ -1,4 +1,5 @@
 import type { BodyNode, GeneratedFile } from '../lib/types';
+import { apiHost, docsFile } from '../lib/api-layout';
 import type { LoadedApi, LoadedCorpus } from '../lib/canonical';
 import { readText } from '../lib/fsx';
 import { stableStringify } from '../lib/stable-json';
@@ -53,7 +54,7 @@ function shapeRows(node: BodyNode, at = '$'): string[] {
 
 function renderApiPage(api: LoadedApi): string {
   const def = api.definition;
-  const output = `docs/${api.relDir}.md`;
+  const output = docsFile(api);
   const link = (target: string) => linkFrom(output, target);
   const hosts = origins(api);
   const lines = [`# ${def.name}`, '', `[API index](${link('dist/docs/summary.md')}) · [Usage](${link('dist/docs/usage.md')}) · [Canonical definition](${link(definitionPath(api))})`, '',
@@ -102,8 +103,8 @@ function renderUsage(corpus: LoadedCorpus): string {
 export function renderDocs(corpus: LoadedCorpus): GeneratedFile[] {
   const summary = [`# ${corpus.collection.name}`, '', `Version: ${corpus.collection.version} · ${corpus.apis.length} endpoints · ${corpus.apis.reduce((n, api) => n + api.examples.length, 0)} recordings`, '',
     '[Usage](usage.md) · [Agent index](../agent/index.json)', '',
-    '| API | name | endpoint |', '|---|---|---|',
-    ...corpus.apis.map((api) => `| [\`${api.definition.api}\`](${api.relDir}.md) | ${cell(api.definition.name)} | \`${api.definition.endpoint.method} ${api.definition.endpoint.url ?? api.definition.endpoint.path}\` |`), ''];
+    '| host | API | name | endpoint |', '|---|---|---|---|',
+    ...corpus.apis.map((api) => `| ${cell(apiHost(api))} | [\`${api.definition.api}\`](${linkFrom('docs/summary.md', `dist/${docsFile(api)}`)}) | ${cell(api.definition.name)} | \`${api.definition.endpoint.method} ${api.definition.endpoint.url ?? api.definition.endpoint.path}\` |`), ''];
   return [{ path: 'docs/summary.md', content: summary.join('\n') }, { path: 'docs/usage.md', content: renderUsage(corpus) },
-    ...corpus.apis.map((api) => ({ path: `docs/${api.relDir}.md`, content: renderApiPage(api) }))];
+    ...corpus.apis.map((api) => ({ path: docsFile(api), content: renderApiPage(api) }))];
 }

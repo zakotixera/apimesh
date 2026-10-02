@@ -19,7 +19,7 @@ describe('application-independent Postman exports', () => {
     const { files, collection, environment } = exported(data);
     expect(files.map((file) => file.path)).toEqual(['postman/endpoints.postman_collection.json', 'postman/replay.postman_environment.json']);
     expect(collection.info.name).toBe('Catalog / staging');
-    expect(collection.item[0].item.map((i: any) => resolveUrl(i.request, collection))).toEqual(records.map((ex) => ex.request.url));
+    expect(collection.item.flatMap((host: any) => host.item.flatMap((api: any) => api.item.map((i: any) => resolveUrl(i.request, collection)))).sort()).toEqual(records.map((ex) => ex.request.url).sort());
     expect(environment.values).toContainEqual({ key: 'apicReplay', value: 'true', enabled: true, type: 'default' });
     expect(environment.values[0].value).toBe('http://127.0.0.1:4010');
   });
@@ -34,7 +34,7 @@ describe('application-independent Postman exports', () => {
     const data = corpus([example()]);
     data.collection.bases = {};
     const { collection } = exported(data);
-    expect(resolveUrl(collection.item[0].item[0].request, collection)).toBe(data.apis[0].examples[0].data.request.url);
+    expect(resolveUrl(collection.item[0].item[0].item[0].request, collection)).toBe(data.apis[0].examples[0].data.request.url);
   });
   it('declares request placeholders disabled for replay and keeps response-only markers out', () => {
     const ex = example({ body: { token: '{{session_token}}' } });
@@ -45,7 +45,7 @@ describe('application-independent Postman exports', () => {
   });
   it('distinguishes observed events while keeping stable recording filenames', () => {
     const data = corpus([example({ body: { event: 'view' } }), example({ body: { event: 'click' } })]);
-    const items = exported(data).collection.item[0].item;
+    const items = exported(data).collection.item[0].item[0].item;
     expect(items[0].name).toContain('view');
     expect(items[1].name).toContain('click');
     expect(items.map((i: any) => i.response[0].name)).toEqual(['0.json', '1.json']);

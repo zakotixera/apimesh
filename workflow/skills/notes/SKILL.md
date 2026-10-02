@@ -9,7 +9,7 @@ description: 基于接口定义、录制样例和已有说明，为 apis/ 下的
 
 ## 输入与范围
 
-阅读 [共享契约](../references/contracts.md)，确认用户或 pipeline 指定的接口。逐个读取 definition、引用的 examples 和已有 notes，必要时参考 `glossary.json` 与 `collection.json`。编辑范围为本次涉及的 `apis/<static path>/notes.md`；规范 JSON 的变更交由 classify 或 drift 处理。
+阅读 [共享契约](../references/contracts.md)，确认用户或 pipeline 指定的接口。逐个读取 definition、引用的 examples 和已有 notes，必要时参考 `glossary.json` 与 `collection.json`。编辑范围为本次涉及的 `apis/<host>/<static path>/notes.md`；规范 JSON 的变更交由 classify 或 drift 处理。
 
 ## 写作步骤
 

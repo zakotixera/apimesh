@@ -13,6 +13,6 @@ Skills maintain canonical data and use the [CLI](../cli/README.md) for determini
 
 Each skill begins with the [shared contracts](references/contracts.md), then reads the schemas and references needed for its task. The repository's CLI, schemas, and related skills must be available.
 
-The example schema supports capture `bodyMeta` and optional recording suffixes for multiple observations of one outcome. Preserve JSON text and existing filenames. Missing bodies, uncaptured uploads, and conflicting methods or hosts in one path directory still require explicit unresolved handling; report those observations alongside completed work.
+The example schema supports capture `bodyMeta` and optional recording suffixes for multiple observations of one outcome. Preserve JSON text and existing filenames. Missing bodies, uncaptured uploads, and conflicting methods or HTTP/HTTPS origins in one host/path directory still require explicit unresolved handling; report those observations alongside completed work.
 
 See the [pipeline instructions](pipeline/SKILL.md) for coordination and handoffs. [Evaluation cases](evals/evals.json) exercise semantic decisions and recovery plans through dry runs. CLI and replay tests separately verify execution behavior.

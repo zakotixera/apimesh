@@ -147,17 +147,18 @@ Classification creates application data such as:
 
 ```text
 apis/
-  catalog/
-    items/
-      definition.json
-      examples/
-        200.code0.ok.json
-      notes.md
+  api.example.invalid/
+    catalog/
+      items/
+        definition.json
+        examples/
+          200.code0.ok.json
+        notes.md
 ```
 
-This layout is illustrative; create definitions and examples only from your application's evidence. For `/catalog/items`, the definition belongs in `apis/catalog/items/`. Each definition has a unique dotted API identifier, structured `endpoint.method` and `endpoint.path`, a source description, and semantic response variants. Each variant references glossary terms and recorded examples. Example filenames follow `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`; use `http-only` when the business code is `null`. A stable lowercase alphanumeric/hyphen suffix allows multiple recordings of the same outcome, for example `200.code0.ok.capture-a.json`. Keep existing filenames and references stable.
+This layout is illustrative; create definitions and examples only from your application's evidence. For `https://api.example.invalid/catalog/items`, the definition belongs in `apis/api.example.invalid/catalog/items/`. Set `endpoint.url` to that absolute URL; directory placement is checked against its host and path. See the [canonical layout guide](apis/README.md) for ports, IPv6, root endpoints, and migration. Each definition has a unique dotted API identifier, structured `endpoint.method`, `endpoint.path`, and `endpoint.url`, a source description, and semantic response variants. Each variant references glossary terms and recorded examples. Example filenames follow `<http>.<codeN|http-only>.<variant>[.<recording-id>].json`; use `http-only` when the business code is `null`. A stable lowercase alphanumeric/hyphen suffix allows multiple recordings of the same outcome, for example `200.code0.ok.capture-a.json`. Keep existing filenames and references stable.
 
-The current model supports one definition per path directory. Conflicting methods or hosts still need a modeling decision before import. Preserve both inputs and report such conflicts. Distinct recordings of one outcome use separate recording suffixes; reuse identical examples without overwriting.
+The current model supports one definition per host/path directory. Different hosts use separate directories and globally unique API identifiers. Conflicting methods or HTTP/HTTPS origins on the same host/path still need a modeling decision before import. Preserve both inputs and report such conflicts. Distinct recordings of one outcome use separate recording suffixes; reuse identical examples without overwriting.
 
 Use the optional [notes](workflow/skills/notes/SKILL.md) skill for brief explanations grounded in definitions and examples. Schemas and detailed merge rules remain in [schema/](schema/) and the classification instructions.
 
@@ -175,8 +176,8 @@ Resolve validation errors before continuing. Review warnings; use `validate --st
 
 | Directory | Output |
 |---|---|
-| `dist/docs/` | API pages and `summary.md` |
-| `dist/agent/` | Agent metadata, indexes, and schema copies |
+| `dist/docs/` | `endpoints/<host>/<path>/index.md`, `summary.md`, and `usage.md` |
+| `dist/agent/` | `endpoints/<host>/<path>/index.json`, shared indexes, and schema copies |
 | `dist/postman/` | `endpoints.postman_collection.json` and `replay.postman_environment.json` |
 
 Edit canonical inputs or renderer source, then regenerate outputs. `apic test` starts a local replay server, checks generated requests against recordings, and shuts the server down. It requires every canonical recording to be exercised. Passing replay does not verify live application availability.

@@ -72,3 +72,9 @@ Captures include request `headers`, `query`, `body` and response `headers`, `bod
 Definitions include `endpoint.url` (absolute origin and pathname, no query/fragment), validated against each example. Request header summaries retain observations common to all recordings. Include empty request `headers`, `query` and `body` sections as `{}`. Parameter `desc` is optional: use it only for a supported meaning, never for requiredness, unknown-data disclaimers or a repetition of the parameter name.
 
 Generated docs contain endpoint identity, parameter observations, response field/type tables and recording links. Omit unknown-only columns, empty sections and repeated capture boilerplate. Raw request recipes and header dumps stay out of docs; complete captures remain in canonical files and executable requests in Postman. Agent details carry parameter definitions and response shapes, with canonical links for capture headers.
+
+## Host categories and artifact layout
+
+Canonical definitions live in `apis/<host>/<path>/`, with `endpoint.url` identifying the actual origin and path. Different hosts may maintain the same endpoint path independently. See the [canonical layout and migration guide](../../apis/README.md). Legacy path-only directories produce migration warnings; strict validation fails until they are moved.
+
+Docs and agent details mirror that hierarchy under `dist/docs/endpoints/` and `dist/agent/endpoints/`, using `index.md` and `index.json` per endpoint. Shared indexes, usage documentation, and schema copies stay outside those endpoint directories. Postman groups recordings by host, then endpoint. Run `render --all` after upgrading and follow the generated index links; see the [distribution layout](../../dist/README.md).

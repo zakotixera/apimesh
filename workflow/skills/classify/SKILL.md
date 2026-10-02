@@ -15,15 +15,15 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 
 ## 输入与输出
 
-抽取结果包含 `version: 1`、`generated_from`、`endpoints[]`；每个 endpoint 包含 `method`、`path`、`frames[]`。每帧包含 `http`、`code`、`captured`、可选 `origin`、`account`、`request`、`response`。以内容中的 method/path 确定端点。body 表示方式与限制见 [CLI 文档](../../cli/README.md)。
+抽取结果包含 `version: 1`、`generated_from`、`endpoints[]`；每个 endpoint 包含 `method`、`path`、`frames[]`。每帧包含 `http`、`code`、`captured`、可选 `origin`、`account`、`request`、`response`。以内容中的 method、每帧 URL 的 origin 和 pathname 确定端点；同一抽取分组的不同 host 分别归入各自主机目录。body 表示方式与限制见 [CLI 文档](../../cli/README.md)。
 
 仅写本次涉及的：
 
-- `apis/<static path>/definition.json`
-- `apis/<static path>/examples/<http>.<codeN|http-only>.<variant>[.<recording-id>].json`
+- `apis/<host>/<static path>/definition.json`
+- `apis/<host>/<static path>/examples/<http>.<codeN|http-only>.<variant>[.<recording-id>].json`
 - `glossary.json` 中有证据支持的新语义域
 
-例如 `/catalog/items` 对应 `apis/catalog/items/`；`ok` 变体的 HTTP 200、业务码 0 样例名为 `200.code0.ok.json`。文件名第三段与 variant 保持一致。
+例如 `https://api.example.invalid/catalog/items` 对应 `apis/api.example.invalid/catalog/items/`；host 来自 URL，不使用 collection.bases 的标签。主机目录编码、根路径与迁移规则见 [规范目录说明](../../../apis/README.md)。`ok` 变体的 HTTP 200、业务码 0 样例名为 `200.code0.ok.json`。文件名第三段与 variant 保持一致。
 
 ## 分类与合并
 
@@ -42,7 +42,7 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 
 - **未分类观测：** 证据不足时保留原抽取结果，列出 method/path、文件、捕获时间、HTTP/code、已知证据、缺失信息及下一步。`unclassified` 是处理状态，不是预设 glossary slug；schema 未定义独立的 `flag` 字段。已确认部分可以导入，结果标记为「部分完成」。
 - **重复录制：** 相同 endpoint / HTTP / code / variant 可保留多个样例。已有记录与新帧相同则复用；不同时使用稳定的 `.recording-id` 后缀（小写字母、数字和连字符，例如脱敏帧的内容摘要），保留原文件名并添加引用。避免覆盖、顺序重编号或为文件名改变语义 slug。后缀仍冲突时保留两份输入并报告。
-- **端点冲突：** 每个目录只能包含一个 definition。同路径不同 method、不同 host 且语义不同，或动态路径无法映射到静态路径时，保留输入并报告建模限制，不覆盖已有定义或改写请求路径。
+- **端点冲突：** 每个目录只能包含一个 definition。同一 host/path 下不同 method、不同协议 origin，或动态路径无法映射到静态路径时，保留输入并报告建模限制，不覆盖已有定义或改写请求路径。不同 host 的同路径接口使用独立目录和全局唯一 API 标识。
 - **输入保护：** 保持 `sources/`、抽取结果和 manifest 不变。任意文本或二进制可能仍含未脱敏信息；发现时保留待处理状态，避免复制到规范数据或交接内容。
 
 ## 校验与交接
@@ -53,7 +53,7 @@ description: 将 apic extract 的 YAML 抽取结果合并为 apis/ 下的规范�
 
 ## Capture field alignment
 
-- Include `endpoint.url` as the absolute origin plus pathname, without query or fragment. Every example must match that origin and path. Preserve `endpoint.path` for directory placement; report conflicting origins.
+- Include `endpoint.url` as the absolute origin plus pathname, without query or fragment. Every example must match that origin and path. Place definitions in `apis/<host>/<path>/` using the recorded URL host and `endpoint.path`. Split different hosts into separate definitions; report conflicting origins within one host/path directory.
 - Write definition request `headers`, `query`, `body` sections with `{}` defaults. Retain headers common to all examples. Cookie and Set-Cookie values belong only in headers, including arrays for repeated fields; do not add isolated `cookies` fields anywhere in canonical files.
 - Preserve example request `headers`, `query`, `body` and response `headers`, `body`. Empty headers are `{}`, query pairs are `[]`, absent body is `null`. Retain duplicate query pairs and repeated headers.
 - Preserve `bodyMeta` for captured bodies, including empty text, and explicit uncaptured-payload evidence. Omit it when no body exists.

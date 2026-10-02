@@ -119,9 +119,9 @@ npm test
 | `schema/` | 规范数据的 JSON Schema |
 | `collection.json`、`glossary.json` | 共享元数据与词汇表 |
 | `sources/` | HAR 原始录制文件 |
-| `apis/` | 规范数据源中的定义、样例与说明 |
+| `apis/<host>/<path>/` | 按主机分组的规范定义、样例与说明 |
 | `.raw/`、`.reports/` | 临时抽取稿与诊断信息 |
-| `dist/` | 面向不同使用方的生成产物 |
+| `dist/` | 面向不同使用方的生成产物，接口文件按主机分组 |
 | `workflow/cli/dist/` | CLI 编译结果 |
 | `.github/workflows/` | CI 配置 |
 

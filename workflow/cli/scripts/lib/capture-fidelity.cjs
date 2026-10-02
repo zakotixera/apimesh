@@ -27,22 +27,26 @@ function requestPayloadMatches(capture, exported) {
 function captureFidelity(expected, collection) {
   const remaining = new Set(expected.keys());
   let mismatches = 0;
-  for (const folder of collection.item) {
-    for (const item of folder.item) {
-      const saved = item.response?.[0];
-      const frame = expected.get(saved?.name);
-      if (!frame || !remaining.delete(saved.name)) { mismatches += 1; continue; }
-      const url = new URL(frame.request.url);
-      const responseText = frame.response.bodyMeta?.representation === 'json'
-        ? JSON.stringify(frame.response.body, null, 2)
-        : frame.response.body === null ? '' : String(frame.response.body);
-      const variables = new Map((collection.variable ?? []).map((entry) => [entry.key, entry.value]));
-      const exportedUrl = item.request.url.raw.replace(/^\{\{([^{}]+)\}\}/, (match, key) => variables.get(key) ?? match);
-      if (item.request.method !== frame.request.method ||
-          exportedUrl !== `${url.origin}${url.pathname}${url.search}` ||
-          !requestPayloadMatches(frame.request, item.request.body) ||
-          saved.code !== frame.response.status || saved.body !== responseText) mismatches += 1;
+  function* requests(items) {
+    for (const item of items) {
+      if (item.request) yield item;
+      else yield* requests(item.item ?? []);
     }
+  }
+  for (const item of requests(collection.item)) {
+    const saved = item.response?.[0];
+    const frame = expected.get(saved?.name);
+    if (!frame || !remaining.delete(saved.name)) { mismatches += 1; continue; }
+    const url = new URL(frame.request.url);
+    const responseText = frame.response.bodyMeta?.representation === 'json'
+      ? JSON.stringify(frame.response.body, null, 2)
+      : frame.response.body === null ? '' : String(frame.response.body);
+    const variables = new Map((collection.variable ?? []).map((entry) => [entry.key, entry.value]));
+    const exportedUrl = item.request.url.raw.replace(/^\{\{([^{}]+)\}\}/, (match, key) => variables.get(key) ?? match);
+    if (item.request.method !== frame.request.method ||
+        exportedUrl !== `${url.origin}${url.pathname}${url.search}` ||
+        !requestPayloadMatches(frame.request, item.request.body) ||
+        saved.code !== frame.response.status || saved.body !== responseText) mismatches += 1;
   }
   return { mismatches: mismatches + remaining.size };
 }

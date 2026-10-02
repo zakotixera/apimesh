@@ -10,7 +10,7 @@ Schemas describe application-neutral data shapes and representation invariants. 
 | Replay | Generated requests match local canonical recordings and execute assertions | Fidelity to extraction evidence when both exporter and server share the same mistake |
 | Semantic classification | Evidence-backed meaning and variant membership | Meaning inferred solely from HTTP status, business code, or a passing test |
 
-`Definition` describes one method/path and its semantic response variants. `Example` preserves one sanitized observation. A variant slug identifies meaning; a recording suffix identifies an observation and must not change that meaning. HTTP and numeric business-code arrays summarize observations; they do not assert every Cartesian combination. Recorded pairs provide the comparison evidence.
+`Definition` describes one origin/method/path and its semantic response variants. `Example` preserves one sanitized observation. A variant slug identifies meaning; a recording suffix identifies an observation and must not change that meaning. HTTP and numeric business-code arrays summarize observations; they do not assert every Cartesian combination. Recorded pairs provide the comparison evidence.
 
 `code` is the integer projection of a numeric response `code` or `errno`, otherwise `null`; other application status fields remain in the body. `null` here means no supported numeric business code, not success. Glossary entries are application-owned vocabulary, and may be absent during initialization. Every used variant still needs a registered glossary term.
 

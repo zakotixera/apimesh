@@ -24,7 +24,7 @@ describe('definition ablations: absence, validity and consumer capability', () =
     if (removed === 'required') delete def.request.query!.id.required;
     const before = structuredClone(def);
     expect(schemas.definition(def)).toEqual([]);
-    const doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
+    const doc = renderDocs(data).find((file) => file.path === 'docs/endpoints/_legacy/x/index.md')!.content;
     const agentFiles = renderAgent(data);
     const entry = JSON.parse(agentFiles[0].content).apis[0];
     const agent = JSON.parse(agentFiles.find((file) => `dist/${file.path}` === entry.detailFile)!.content);
@@ -42,7 +42,7 @@ describe('definition ablations: absence, validity and consumer capability', () =
     data.paths = project;
     data.apis[0].definition.auth = 'none';
     data.apis[0].definition.request = { query: { id: { required: false, type: 'string', desc: 'Identifier' } } };
-    const doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
+    const doc = renderDocs(data).find((file) => file.path === 'docs/endpoints/_legacy/x/index.md')!.content;
     expect(doc).toContain('**auth**: `none`');
     expect(doc).toContain('| query | `id` | string | no |');
     expect(JSON.parse(renderAgent(data)[0].content).apis[0].auth).toBe('none');
@@ -52,11 +52,11 @@ describe('definition ablations: absence, validity and consumer capability', () =
     const data = corpus([]);
     const def = data.apis[0].definition;
     def.request = { query: { q: { default: 'recorded', desc: 'Observed query' } } };
-    let doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
+    let doc = renderDocs(data).find((file) => file.path === 'docs/endpoints/_legacy/x/index.md')!.content;
     expect(doc).toContain('| observed value |');
     expect(doc).not.toContain('response fields');
     def.responses[0].schema = { type: 'null' };
-    doc = renderDocs(data).find((file) => file.path === 'docs/x.md')!.content;
+    doc = renderDocs(data).find((file) => file.path === 'docs/endpoints/_legacy/x/index.md')!.content;
     expect(doc).toContain('| `$` | null |');
     expect(doc).not.toContain('_Shape unknown._');
   });

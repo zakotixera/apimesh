@@ -34,7 +34,7 @@ describe('template and complete workflow', () => {
     expect(run('collection-mode.cjs', [dir]).status).toBe(1);
   });
 
-  it('extracts, validates, renders twice, replays every recording and compares baseline drift', () => {
+  it.each([false, true])('extracts, validates, renders twice, replays and compares drift (multiple hosts: %s)', (multipleHosts) => {
     const dir = fixture();
     const file = path.join(dir, 'capture with spaces.har');
     const entry = (index: number, postData: object, content: object) => ({
@@ -51,12 +51,17 @@ describe('template and complete workflow', () => {
       entry(2, { mimeType: 'application/x-www-form-urlencoded', params: [{ name: 'q', value: 'one' }, { name: 'q', value: 'two' }] }, { mimeType: 'application/json', text: '{"message":"HTTP only"}' }),
       entry(3, { mimeType: 'multipart/form-data', params: [{ name: 'q', value: 'one' }, { name: 'q', value: 'two' }] }, { mimeType: 'application/json', text: 'null' }),
     ] } };
+    if (multipleHosts) {
+      const other = structuredClone(har.log.entries[0]);
+      other.request.url = 'https://other.invalid/recorded?token=synthetic-secret';
+      har.log.entries.push(other);
+    }
     fs.writeFileSync(file, JSON.stringify(har));
     const before = fs.readFileSync(file);
     const result = run('check-har.cjs', [file]);
     expect(result.stderr).toBe('');
     expect(result.status).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({ sourceEntries: 4, recordings: 4, endpoints: 1, additionalRecordings: 2,
+    expect(JSON.parse(result.stdout)).toMatchObject({ sourceEntries: multipleHosts ? 5 : 4, recordings: multipleHosts ? 5 : 4, endpoints: multipleHosts ? 2 : 1, additionalRecordings: 2,
       validation: 'passed', validationProbes: 7, extractionStability: 'passed', renderStability: 'passed', replay: 'passed', captureFidelity: 'passed', baselineDrift: 'none' });
     expect(fs.readFileSync(file)).toEqual(before);
   }, 60000);

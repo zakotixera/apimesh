@@ -119,9 +119,9 @@ For interactive Postman replay, run `npm run apic -- serve` from `workflow/cli` 
 | `schema/` | Canonical JSON Schemas |
 | `collection.json`, `glossary.json` | Shared metadata and vocabulary |
 | `sources/` | HAR source recordings |
-| `apis/` | Canonical definitions, examples, notes |
+| `apis/<host>/<path>/` | Canonical definitions, examples, notes grouped by host |
 | `.raw/`, `.reports/` | Temporary drafts and diagnostics |
-| `dist/` | Generated consumer files |
+| `dist/` | Consumer bundles with host-grouped endpoint files |
 | `workflow/cli/dist/` | Compiled CLI code |
 | `.github/workflows/` | CI configuration |
 

@@ -78,7 +78,7 @@ export interface Variant {
   examples?: string[];
 }
 
-/** apis/<path>/definition.json */
+/** apis/<host>/<path>/definition.json */
 export interface Definition {
   api: string;
   name: string;
@@ -134,7 +134,7 @@ export interface ExampleResponse {
   bodyMeta?: BodyMetadata;
 }
 
-/** apis/<path>/examples/<http>.<code|http-only>.<slug>[.<recording-id>].json */
+/** apis/<host>/<path>/examples/<http>.<code|http-only>.<slug>[.<recording-id>].json */
 export interface Example {
   http: number;
   /** The body code, falling back to errno; null denotes an HTTP-only observation. */

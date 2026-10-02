@@ -13,7 +13,7 @@ const sec = defaultSecurityMaskerConfig();
 function capture(mimeType: string, text: string) { return maskCapturedBody(capturePostData({ mimeType, text }), cfg, sec); }
 function request(captured: ReturnType<typeof capturePostData>) {
   const files = renderPostman(corpus([example({ headers: {}, ...captured })]));
-  return JSON.parse(files[0].content).item[0].item[0].request;
+  return JSON.parse(files[0].content).item[0].item[0].item[0].request;
 }
 describe('body capture, masking and export', () => {
   it('masks encoded form names and all duplicates while preserving untouched bytes', () => {
@@ -84,11 +84,11 @@ describe('body capture, masking and export', () => {
   it('exports response MIME and typed JSON scalars without changing their meaning', () => {
     const ex = example();
     ex.response = { status: 200, body: null, bodyMeta: { mimeType: 'application/json', source: 'text', representation: 'json' } };
-    const saved = JSON.parse(renderPostman(corpus([ex]))[0].content).item[0].item[0].response[0];
+    const saved = JSON.parse(renderPostman(corpus([ex]))[0].content).item[0].item[0].item[0].response[0];
     expect(saved.body).toBe('null');
     expect(saved.header).toContainEqual({ key: 'content-type', value: 'application/json', type: 'text' });
     ex.response = { status: 200, ...captureContent({ mimeType: 'application/xml', text: '<root/>' }) };
-    const xml = JSON.parse(renderPostman(corpus([ex]))[0].content).item[0].item[0].response[0];
+    const xml = JSON.parse(renderPostman(corpus([ex]))[0].content).item[0].item[0].item[0].response[0];
     expect(xml.body).toBe('<root/>');
     expect(xml._postman_previewlanguage).toBe('xml');
   });

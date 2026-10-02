@@ -17,6 +17,12 @@ interface RenderOptions {
 
 /** Replace generated files while preserving the handwritten README; return the file count. */
 function writeGroup(paths: ProjectPaths, dir: string, files: GeneratedFile[]): number {
+  const destinations = new Set<string>();
+  for (const file of files) {
+    const destination = path.resolve(paths.dist, file.path).toLowerCase();
+    if (destinations.has(destination)) throw new Error(`Conflicting generated path: ${file.path}; separate canonical endpoints before rendering`);
+    destinations.add(destination);
+  }
   clearDirExcept(dir, ['README.md']);
   for (const file of files) {
     writeTextStable(path.join(paths.dist, file.path), file.content);
