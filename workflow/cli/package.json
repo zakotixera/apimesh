@@ -26,7 +26,7 @@
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
-    "commander": "^12.1.0",
+    "commander": "^15.0.0",
     "newman": "^6.2.1",
     "yaml": "^2.6.1"
   },
