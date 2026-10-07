@@ -52,12 +52,84 @@ export interface HarLog {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function invalid(path: string, detail: string): never {
+  throw new Error(`Invalid HAR: ${path} ${detail}`);
+}
+
+function validateHeaders(value: unknown, path: string): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) invalid(path, 'must be an array');
+  value.forEach((header, index) => {
+    if (!isRecord(header) || typeof header.name !== 'string' || typeof header.value !== 'string') {
+      invalid(`${path}[${index}]`, 'must contain string name and value');
+    }
+  });
+}
+
+function validatePostData(value: unknown, path: string): void {
+  if (value === undefined) return;
+  if (!isRecord(value)) invalid(path, 'must be an object');
+  for (const key of ['mimeType', 'text'] as const) {
+    if (value[key] !== undefined && typeof value[key] !== 'string') invalid(`${path}.${key}`, 'must be a string');
+  }
+  if (value.params !== undefined) {
+    if (!Array.isArray(value.params)) invalid(`${path}.params`, 'must be an array');
+    value.params.forEach((param, index) => {
+      if (!isRecord(param) || typeof param.name !== 'string') invalid(`${path}.params[${index}]`, 'must contain a string name');
+      for (const key of ['value', 'fileName', 'contentType'] as const) {
+        if (param[key] !== undefined && typeof param[key] !== 'string') invalid(`${path}.params[${index}].${key}`, 'must be a string');
+      }
+    });
+  }
+}
+
+function validateContent(value: unknown, path: string): void {
+  if (value === undefined) return;
+  if (!isRecord(value)) invalid(path, 'must be an object');
+  for (const key of ['mimeType', 'text', 'encoding'] as const) {
+    if (value[key] !== undefined && typeof value[key] !== 'string') invalid(`${path}.${key}`, 'must be a string');
+  }
+}
+
+function validateEntry(value: unknown, index: number): void {
+  const entryPath = `log.entries[${index}]`;
+  if (!isRecord(value)) invalid(entryPath, 'must be an object');
+  if (typeof value.startedDateTime !== 'string') invalid(`${entryPath}.startedDateTime`, 'must be a string');
+  if (value.time !== undefined && (typeof value.time !== 'number' || !Number.isFinite(value.time))) {
+    invalid(`${entryPath}.time`, 'must be a finite number');
+  }
+  if (value._origin !== undefined && typeof value._origin !== 'string') invalid(`${entryPath}._origin`, 'must be a string');
+
+  if (!isRecord(value.request)) invalid(`${entryPath}.request`, 'must be an object');
+  if (typeof value.request.method !== 'string') invalid(`${entryPath}.request.method`, 'must be a string');
+  if (typeof value.request.url !== 'string') invalid(`${entryPath}.request.url`, 'must be a string');
+  if (value.request.httpVersion !== undefined && typeof value.request.httpVersion !== 'string') {
+    invalid(`${entryPath}.request.httpVersion`, 'must be a string');
+  }
+  validateHeaders(value.request.headers, `${entryPath}.request.headers`);
+  validatePostData(value.request.postData, `${entryPath}.request.postData`);
+
+  if (!isRecord(value.response)) invalid(`${entryPath}.response`, 'must be an object');
+  if (typeof value.response.status !== 'number' || !Number.isInteger(value.response.status)) {
+    invalid(`${entryPath}.response.status`, 'must be an integer');
+  }
+  if (value.response.httpVersion !== undefined && typeof value.response.httpVersion !== 'string') {
+    invalid(`${entryPath}.response.httpVersion`, 'must be a string');
+  }
+  validateHeaders(value.response.headers, `${entryPath}.response.headers`);
+  validateContent(value.response.content, `${entryPath}.response.content`);
+}
+
 export function parseHar(raw: unknown): HarLog {
-  const doc = raw as HarLog;
-  if (!doc || typeof doc !== 'object' || !doc.log || !Array.isArray(doc.log.entries)) {
+  if (!isRecord(raw) || !isRecord(raw.log) || !Array.isArray(raw.log.entries)) {
     throw new Error('Invalid HAR: log.entries is missing');
   }
-  return doc;
+  raw.log.entries.forEach(validateEntry);
+  return raw as unknown as HarLog;
 }
 
 /** Preserve recorded protocol labels (including h2/h3); omit unavailable values. */

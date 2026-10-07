@@ -47,7 +47,7 @@ The npm convenience command `npm --prefix vendor/apimesh/workflow/cli run init -
 
 ## Output boundaries
 
-Extraction uses `.apic-extract.json` to track filenames and hashes. It updates unchanged managed files, removes obsolete managed files, and preserves unrelated files. Modified or unowned output collisions are rejected; use a new `--out` directory for older drafts without a manifest. Symlink and junction output paths are rejected. Writes are not transactional.
+Extraction uses `.apic-extract.json` to track filenames and hashes. It updates unchanged managed files, removes obsolete managed files, and preserves unrelated files. Modified or unowned output collisions are rejected; use a new `--out` directory for older drafts without a manifest. Symlink and junction output paths are rejected. Managed extraction output and each rendered group are staged and swapped as a unit.
 
 Rendering replaces generated output groups while preserving their READMEs. Local `dist/` contains compiled JavaScript; collection-root `dist/` contains committed consumer artifacts. Extraction, validation, and drift diagnostics go to collection-root `.reports/`, which is gitignored and disposable. `apic render` does not generate reports.
 

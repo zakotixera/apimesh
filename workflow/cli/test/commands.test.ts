@@ -15,7 +15,7 @@ function fixture() {
   const project = paths.projectPaths(dir);
   vi.spyOn(paths, 'resolvePaths').mockReturnValue(project);
   vi.spyOn(console, 'log').mockImplementation(() => {});
-  fs.writeFileSync(project.collectionFile, JSON.stringify({ name: 'test', version: '1', bases: { web: 'https://example.invalid' }, changelog: [] }));
+  fs.writeFileSync(project.collectionFile, JSON.stringify({ name: 'test', version: '1.0.0', bases: { web: 'https://example.invalid' }, changelog: [] }));
   fs.writeFileSync(project.glossaryFile, JSON.stringify({ domains: [] }));
   const input = path.join(dir, 'input.har');
   fs.writeFileSync(input, JSON.stringify({ log: { version: '1.2', entries: [{
@@ -38,6 +38,13 @@ describe('CLI commands with isolated fixtures', () => {
     await extractCommand().parseAsync([], { from: 'user' });
     const report = JSON.parse(fs.readFileSync(path.join(project.reports, 'extract-a.json'), 'utf8'));
     expect(report).toMatchObject({ inputs: ['a.har', 'z.HAR'], frames: 2, duplicates: 1 });
+  });
+
+  it('reports malformed HAR entries at the input boundary', async () => {
+    const { input } = fixture();
+    fs.writeFileSync(input, JSON.stringify({ log: { version: '1.2', entries: [null] } }));
+    await expect(extractCommand().parseAsync([input], { from: 'user' }))
+      .rejects.toThrow('Invalid HAR: log.entries[0] must be an object');
   });
   it('fails an empty automatic batch before changing existing drafts', async () => {
     const { project, input } = fixture();
@@ -136,6 +143,31 @@ describe('CLI commands with isolated fixtures', () => {
         type: 'object', properties: { code: { type: 'number' }, data: { type: 'object', properties: { count: { type: 'number' } } } },
       } }],
     }));
+    await driftCommand().parseAsync([input], { from: 'user' });
+    expect(JSON.parse(fs.readFileSync(path.join(project.reports, 'drift-input.json'), 'utf8')).changes).toEqual([]);
+  });
+
+  it('uses capture origin when matching legacy definitions with the same path', async () => {
+    const { project, input } = fixture();
+    const makeDefinition = (api: string, exampleName: string) => ({
+      api, name: api, endpoint: { method: 'POST', path: '/x' }, source: 'test',
+      responses: [{ variant: 'ok', status: 'ok', codes: [0], http: [200], schema: null, examples: [exampleName] }],
+    });
+    const recording = (url: string) => ({
+      http: 200, code: 0, captured: '2026-01-01T00:00:00Z', account: 'anonymous',
+      request: { method: 'POST', url, body: null }, response: { status: 200, body: { code: 0 } },
+    });
+    for (const [name, origin] of [['first', 'https://host-a.invalid'], ['second', 'https://host-b.invalid']] as const) {
+      const dir = path.join(project.apis, name);
+      fs.mkdirSync(path.join(dir, 'examples'), { recursive: true });
+      const file = '200.code0.ok.json';
+      fs.writeFileSync(path.join(dir, 'definition.json'), JSON.stringify(makeDefinition(`${name}.test`, file)));
+      fs.writeFileSync(path.join(dir, 'examples', file), JSON.stringify(recording(`${origin}/x`)));
+    }
+    const har = JSON.parse(fs.readFileSync(input, 'utf8'));
+    har.log.entries[0].request.url = 'https://host-b.invalid/x';
+    har.log.entries[0].response.content.text = '{"code":0}';
+    fs.writeFileSync(input, JSON.stringify(har));
     await driftCommand().parseAsync([input], { from: 'user' });
     expect(JSON.parse(fs.readFileSync(path.join(project.reports, 'drift-input.json'), 'utf8')).changes).toEqual([]);
   });

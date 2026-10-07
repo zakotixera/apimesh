@@ -13,6 +13,26 @@ function statIfPresent(file: string): fs.Stats | undefined {
   }
 }
 
+function assertRegularTree(dir: string): void {
+  const stat = statIfPresent(dir);
+  if (!stat) return;
+  if (stat.isSymbolicLink()) throw new Error(`Extract output contains a symlink or junction: ${dir}`);
+  if (stat.isDirectory()) {
+    for (const entry of fs.readdirSync(dir)) assertRegularTree(path.join(dir, entry));
+  } else if (!stat.isFile()) {
+    throw new Error(`Extract output contains a non-regular file: ${dir}`);
+  }
+}
+
+function copyDirectoryContents(source: string, target: string): void {
+  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+    const from = path.join(source, entry.name);
+    const to = path.join(target, entry.name);
+    if (entry.isDirectory()) fs.cpSync(from, to, { recursive: true });
+    else fs.copyFileSync(from, to);
+  }
+}
+
 /** Update only unchanged, manifest-owned artifacts; never recursively clear the output directory. */
 export function writeExtractOutput(dir: string, files: Array<{ name: string; content: string }>): void {
   const target = path.resolve(dir);
@@ -41,6 +61,7 @@ export function writeExtractOutput(dir: string, files: Array<{ name: string; con
   const next: Manifest = { version: 1, files: {} };
   const normalized = files.map(({ name, content }) => {
     if (!validName(name)) throw new Error(`Invalid extract filename: ${name}`);
+    if (Object.hasOwn(next.files, name)) throw new Error(`Duplicate extract filename: ${name}`);
     const text = content.replace(/\r\n/g, '\n').replace(/\n?$/, '\n');
     next.files[name] = digest(text);
     return { name, content: text };
@@ -55,10 +76,29 @@ export function writeExtractOutput(dir: string, files: Array<{ name: string; con
       throw new Error(`Refusing to overwrite or delete an unmanaged or modified file: ${file}; use a new --out directory`);
     }
   }
-  fs.mkdirSync(target, { recursive: true });
-  for (const file of normalized) fs.writeFileSync(path.join(target, file.name), file.content, 'utf8');
-  for (const name of Object.keys(previous.files)) {
-    if (!Object.hasOwn(next.files, name)) fs.rmSync(path.join(target, name), { force: true });
+  assertRegularTree(target);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const staging = fs.mkdtempSync(path.join(path.dirname(target), `.${path.basename(target)}.staging-`));
+  let backup: string | undefined;
+  let swapped = false;
+  try {
+    if (statIfPresent(target)) copyDirectoryContents(target, staging);
+    for (const file of normalized) fs.writeFileSync(path.join(staging, file.name), file.content, 'utf8');
+    for (const name of Object.keys(previous.files)) {
+      if (!Object.hasOwn(next.files, name)) fs.rmSync(path.join(staging, name), { force: true });
+    }
+    fs.writeFileSync(path.join(staging, MANIFEST), stableStringify(next), 'utf8');
+
+    backup = path.join(path.dirname(target), `.${path.basename(target)}.backup-${process.pid}-${Date.now()}`);
+    if (statIfPresent(target)) fs.renameSync(target, backup);
+    fs.renameSync(staging, target);
+    swapped = true;
+    if (backup) fs.rmSync(backup, { recursive: true, force: true });
+  } catch (error) {
+    if (!swapped && backup && !statIfPresent(target) && statIfPresent(backup)) fs.renameSync(backup, target);
+    throw error;
+  } finally {
+    if (statIfPresent(staging)) fs.rmSync(staging, { recursive: true, force: true });
+    if (swapped && backup && statIfPresent(backup)) fs.rmSync(backup, { recursive: true, force: true });
   }
-  fs.writeFileSync(manifestFile, stableStringify(next), 'utf8');
 }

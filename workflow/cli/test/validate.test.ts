@@ -118,6 +118,26 @@ describe('canonical structural and observation validation', () => {
       message: expect.stringContaining('apis/example.invalid/x/') }));
   });
 
+  it('rejects files outside a definition-owned endpoint directory', async () => {
+    const report = await validate((files) => {
+      files['apis/orphan/examples/200.code0.ok.json'] = example();
+    });
+    expect(report.issues).toContainEqual(expect.objectContaining({
+      severity: 'error', code: 'canonical-orphan', file: 'apis/orphan/examples/200.code0.ok.json',
+    }));
+  });
+
+  it('rejects auth registry aliases that disagree with the emitted placeholder name', async () => {
+    const report = await validate((files) => {
+      files['collection.json'].auth = {
+        sessionAlias: { kind: 'cookie', name: 'SESSION_ID', doc: 'Session cookie' },
+      };
+    });
+    expect(report.issues).toContainEqual(expect.objectContaining({
+      severity: 'error', code: 'auth-name-mismatch', path: 'auth.sessionAlias.name',
+    }));
+  });
+
   it('compares repeated response header values structurally', async () => {
     const report = await validate((files) => {
       files['apis/example.invalid/x/definition.json'].responses[0].headers = { 'set-cookie': ['a=1', 'b=2'] };

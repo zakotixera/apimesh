@@ -9,6 +9,17 @@ export interface MaskConfig {
   all: Set<string>;
 }
 
+/** Return the names that masking actually emits as placeholders. */
+export function registeredAuthNames(collection: Collection): Set<string> {
+  return new Set(Object.entries(collection.auth ?? {}).map(([key, profile]) => profile?.name ?? key));
+}
+
+export function authRegistryMismatches(collection: Collection): Array<{ key: string; name: string }> {
+  return Object.entries(collection.auth ?? {})
+    .filter(([key, profile]) => profile?.name !== key)
+    .map(([key, profile]) => ({ key, name: profile?.name ?? '' }));
+}
+
 export function placeholder(name: string): string {
   return `{{${name}}}`;
 }

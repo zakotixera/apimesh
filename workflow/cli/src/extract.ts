@@ -1,94 +1,22 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { queryFromUrl } from './lib/http-fields';
 import { Command } from 'commander';
 import { stringify as yamlStringify } from 'yaml';
-import { loadCollection } from './lib/canonical';
-import {
-  exists,
-  readJson,
-  writeJsonStable,
-} from './lib/fsx';
-import {
-  captureContent,
-  capturePostData,
-  codeFromBody,
-  headersToMap,
-  normalizeCaptured,
-  parseHar,
-  requestHttpMeta,
-  responseHttpMeta,
-} from './lib/har';
-import type { HarEntry, HarLog } from './lib/har';
-import {
-  maskConfigFromCollection,
-  type MaskConfig,
-} from './lib/mask';
-import {
-  defaultSecurityMaskerConfig,
-  maskCapturedBody,
-  maskHeadersSecure,
-  maskUrlSecure,
-  type SecurityMaskerConfig,
-} from './lib/security-masker';
+import { loadValidatedCollection } from './lib/canonical';
+import { writeJsonStable } from './lib/fsx';
+import { buildCaptureFrame, pathnameOf, readHar } from './lib/capture';
+import { maskConfigFromCollection } from './lib/mask';
+import { defaultSecurityMaskerConfig } from './lib/security-masker';
 import { rel, resolvePaths } from './lib/paths';
 import { stableStringify } from './lib/stable-json';
-import { headerValue } from './lib/body';
 import { writeExtractOutput } from './lib/extract-output';
 import type {
-  Collection,
   ExtractDoc,
   ExtractEndpoint,
   ExtractFrame,
   ExtractReport,
   HttpMethod,
 } from './lib/types';
-
-/** Supported HttpMethod values from lib/types.ts. */
-const HTTP_METHODS: readonly HttpMethod[] = [
-  'GET',
-  'POST',
-  'PUT',
-  'PATCH',
-  'DELETE',
-  'HEAD',
-  'OPTIONS',
-];
-
-function asHttpMethod(raw: string, url: string): HttpMethod {
-  const method = raw.toUpperCase();
-  if (!(HTTP_METHODS as readonly string[]).includes(method)) {
-    throw new Error(`Unsupported HTTP method: ${raw} (URL: ${url})`);
-  }
-  return method as HttpMethod;
-}
-
-/** Group requests by pathname, excluding query parameters. */
-function pathnameOf(url: string): string {
-  try {
-    return new URL(url).pathname;
-  } catch {
-    throw new Error(`Cannot group an invalid URL: ${url}`);
-  }
-}
-
-/** Resolve the capture origin by matching the request host to collection.bases. */
-function detectOrigin(url: string, collection: Collection): string | undefined {
-  let host: string;
-  try {
-    host = new URL(url).host;
-  } catch {
-    return undefined;
-  }
-  for (const [key, base] of Object.entries(collection.bases)) {
-    try {
-      if (new URL(base).host === host) return key;
-    } catch {
-      /** Skip an invalid base URL. */
-    }
-  }
-  return undefined;
-}
 
 /** Preserve input order when capture timestamps are equal. */
 interface OrderedFrame {
@@ -102,69 +30,12 @@ interface Group {
   frames: OrderedFrame[];
 }
 
-function buildFrame(
-  entry: HarEntry,
-  cfg: MaskConfig,
-  sec: SecurityMaskerConfig,
-  account: string,
-  forcedOrigin: string | undefined,
-  collection: Collection,
-  order: number,
-): ExtractFrame {
-  const method = asHttpMethod(entry.request.method, entry.request.url);
-  const status = entry.response.status;
-  const responseHeaders = maskHeadersSecure(headersToMap(entry.response.headers), cfg, sec) ?? {};
-  const requestHeaders = maskHeadersSecure(headersToMap(entry.request.headers), cfg, sec) ?? {};
-  const url = maskUrlSecure(entry.request.url, cfg, sec);
-  const response = maskCapturedBody(captureContent(entry.response.content, headerValue(responseHeaders, 'content-type')), cfg, sec);
-  const request = maskCapturedBody(capturePostData(entry.request.postData, headerValue(requestHeaders, 'content-type')), cfg, sec);
-  const origin =
-    forcedOrigin ??
-    (typeof entry._origin === 'string' && entry._origin.length > 0
-      ? entry._origin
-      : detectOrigin(entry.request.url, collection));
-  return {
-    http: status,
-    code: codeFromBody(response.body),
-    captured: normalizeCaptured(entry.startedDateTime),
-    ...(origin !== undefined ? { origin } : {}),
-    account,
-    request: {
-      httpMeta: requestHttpMeta(entry.request),
-      method,
-      url,
-      headers: requestHeaders,
-      query: queryFromUrl(url),
-      body: request.body,
-      ...(request.bodyMeta ? { bodyMeta: request.bodyMeta } : {}),
-    },
-    response: {
-      httpMeta: responseHttpMeta(entry),
-      status,
-      headers: responseHeaders,
-      body: response.body,
-      ...(response.bodyMeta ? { bodyMeta: response.bodyMeta } : {}),
-    },
-  };
-}
-
 /** `/catalog/items` -> `GET.catalog.items.yaml`; `/` -> `GET.yaml`. */
 function endpointFileName(endpoint: ExtractEndpoint): string {
   const segments = endpoint.path.split('/').filter((s) => s.length > 0);
   const stem =
     segments.length > 0 ? `${endpoint.method}.${segments.join('.')}` : endpoint.method;
   return `${stem}.yaml`;
-}
-
-function readHar(file: string): HarLog {
-  if (!exists(file)) throw new Error(`HAR file not found: ${file}`);
-  let raw: unknown;
-  try {
-    raw = readJson(file);
-  } catch (err) {
-    throw new Error(`Cannot read HAR ${file}: ${err instanceof Error ? err.message : String(err)}`);
-  }
-  return parseHar(raw);
 }
 
 interface ExtractOptions {
@@ -189,7 +60,7 @@ export function extractCommand(): Command {
           .map((entry) => path.join(paths.sources, entry.name)).sort() : [];
         if (hars.length === 0) throw new Error('No HAR inputs found. Pass explicit file paths or put captures in collection sources/.');
       }
-      const collection = loadCollection(paths);
+      const collection = loadValidatedCollection(paths);
       const cfg = maskConfigFromCollection(collection);
       const sec = defaultSecurityMaskerConfig();
       const forcedOrigin =
@@ -206,16 +77,11 @@ export function extractCommand(): Command {
         const har = readHar(harPath);
         inputs.push(path.basename(harPath));
         for (const entry of har.log.entries) {
-          const frame = buildFrame(
-            entry,
-            cfg,
-            sec,
-            options.account,
+          const frame = buildCaptureFrame(entry, collection, cfg, sec, {
+            account: options.account,
             forcedOrigin,
-            collection,
-            totalFrames,
-          );
-          const requestPath = pathnameOf(entry.request.url);
+          });
+          const requestPath = pathnameOf(entry.request.url, 'group');
           const key = `${frame.request.method} ${requestPath}`;
           let group = groups.get(key);
           if (!group) {

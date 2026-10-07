@@ -9,7 +9,7 @@ const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach(removeTemporaryDirectory));
 function collection() {
   const root = temporaryDirectory(); dirs.push(root);
-  fs.writeFileSync(path.join(root, 'collection.json'), '{}');
+  fs.writeFileSync(path.join(root, 'collection.json'), JSON.stringify({ name: 'Test', version: '1.0.0', bases: {}, changelog: [] }));
   fs.writeFileSync(path.join(root, 'glossary.json'), '{"domains":[]}');
   return root;
 }
@@ -38,6 +38,14 @@ describe('collection and toolchain paths', () => {
     expect(resolvePaths(nested, root).root).toBe(root);
     fs.unlinkSync(path.join(nested, 'glossary.json'));
     expect(() => resolvePaths(nested)).toThrow('Missing glossary.json');
+  });
+
+  it('rejects malformed canonical documents before consumers render or replay them', () => {
+    const root = collection();
+    const definition = path.join(root, 'apis/example.invalid/x/definition.json');
+    fs.mkdirSync(path.dirname(definition), { recursive: true });
+    fs.writeFileSync(definition, JSON.stringify({ invalid: true }));
+    expect(() => loadCorpus(projectPaths(root))).toThrow('Invalid definition');
   });
 
   it('never selects the toolchain metadata templates', () => {
