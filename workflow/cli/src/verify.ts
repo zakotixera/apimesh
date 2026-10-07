@@ -32,7 +32,7 @@ export function verifyCommand(): Command {
       const stages: Array<{ stage: string; status: 'passed' | 'failed' }> = [];
       const report = { command: 'verify', ok: false, strict: options.strict, committed: !!options.committed, files: 0, stages };
       const reportFile = path.join(paths.reports, 'verify.json');
-      assertUnlinkedPath(reportFile);
+      assertUnlinkedPath(reportFile, paths.root);
       const stage = (name: string, action: () => void): void => {
         try { action(); stages.push({ stage: name, status: 'passed' }); }
         catch (error) { stages.push({ stage: name, status: 'failed' }); throw error; }
@@ -43,15 +43,15 @@ export function verifyCommand(): Command {
         if (result.status !== 0) throw new Error(`verify: ${args[0]} failed (${result.signal ?? result.status})`);
       };
       try {
-        stage('output-paths', () => { outputSnapshot(paths.dist); });
+        stage('output-paths', () => { outputSnapshot(paths.dist, paths.root); });
         if (options.committed) stage('committed-before', () => checkCommitted(paths.root));
         stage('validate', () => run('validate', ...(options.strict ? ['--strict'] : [])));
         stage('render-first', () => run('render', '--all'));
         if (options.committed) stage('committed-first', () => checkCommitted(paths.root));
-        const before = outputSnapshot(paths.dist);
+        const before = outputSnapshot(paths.dist, paths.root);
         stage('render-second', () => run('render', '--all'));
         stage('stability', () => {
-          const after = outputSnapshot(paths.dist);
+          const after = outputSnapshot(paths.dist, paths.root);
           if (JSON.stringify(before) !== JSON.stringify(after)) throw new Error('Generated file paths or bytes changed between renders');
           report.files = after.length;
         });

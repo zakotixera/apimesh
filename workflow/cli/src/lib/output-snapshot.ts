@@ -2,15 +2,26 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
-/** Reject linked ancestors before writing or traversing application outputs. */
-export function assertUnlinkedPath(target: string): void {
-  let current = path.resolve(target);
+/**
+ * Reject linked path components inside an application boundary before writing
+ * or traversing application outputs. System path aliases (for example,
+ * macOS's `/var` -> `/private/var`) may appear above that boundary.
+ */
+export function assertUnlinkedPath(target: string, boundary: string = target): void {
+  const resolvedTarget = path.resolve(target);
+  const resolvedBoundary = path.resolve(boundary);
+  const relative = path.relative(resolvedBoundary, resolvedTarget);
+  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error(`Output path is outside its safety boundary: ${resolvedTarget}`);
+  }
+  let current = resolvedTarget;
   for (;;) {
     try {
       if (fs.lstatSync(current).isSymbolicLink()) throw new Error(`Symlink or junction is not an output path: ${current}`);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
+    if (current === resolvedBoundary) return;
     const parent = path.dirname(current);
     if (parent === current) return;
     current = parent;
@@ -18,8 +29,8 @@ export function assertUnlinkedPath(target: string): void {
 }
 
 /** Include every output filename and byte, including files not tracked by Git. */
-export function outputSnapshot(directory: string): Array<[string, string]> {
-  assertUnlinkedPath(directory);
+export function outputSnapshot(directory: string, boundary: string = directory): Array<[string, string]> {
+  assertUnlinkedPath(directory, boundary);
   if (!fs.existsSync(directory)) return [];
   const result: Array<[string, string]> = [];
   const visit = (dir: string): void => {

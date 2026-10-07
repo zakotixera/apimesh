@@ -40,7 +40,7 @@ export function initCommand(): Command {
       // Preflight the entire set before creating anything, including dry runs.
       for (const file of [...files.keys(), 'sources']) {
         const target = path.join(paths.root, file);
-        assertUnlinkedPath(target);
+        assertUnlinkedPath(target, paths.root);
         if (fs.existsSync(target) && fs.statSync(target).isDirectory() !== (file === 'sources')) {
           throw new Error(`Unexpected file type at initialization destination: ${target}`);
         }
