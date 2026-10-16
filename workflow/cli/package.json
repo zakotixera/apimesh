@@ -28,11 +28,11 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "commander": "^12.1.0",
-    "newman": "^6.2.1",
+    "newman": "^6.2.3",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.5",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5"
   },
